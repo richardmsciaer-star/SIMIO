@@ -9,8 +9,8 @@ try:
 except ImportError:
     PSYCOPG2_AVAILABLE = False
 
-DATABASE_URL = os.environ.get("DATABASE_URL")
-USE_POSTGRES = DATABASE_URL and PSYCOPG2_AVAILABLE
+DATABASE_URL = os.environ.get("DATABASE_URL") or os.environ.get("POSTGRES_URL") or os.environ.get("SUPABASE_DB_URL") or os.environ.get("POSTGRES_URL_NON_POOLING")
+USE_POSTGRES = bool(DATABASE_URL and PSYCOPG2_AVAILABLE)
 
 if not USE_POSTGRES:
     BASE_DIR = os.path.dirname(os.path.abspath(__file__))
