@@ -1,7 +1,6 @@
 from flask import Flask, request, jsonify, send_from_directory, render_template, Response
 import os
-from db_utils import execute_query, init_db
-import sqlite3
+import sys
 import json
 import uuid
 import traceback
@@ -13,6 +12,10 @@ import io
 
 # Configuración de rutas absoluta basada en la ubicación del script
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+sys.path.append(BASE_DIR)
+from db_utils import execute_query, init_db
+import sqlite3
+
 app = Flask(__name__, template_folder=os.path.join(BASE_DIR, 'templates'))
 
 if os.environ.get("VERCEL"):
