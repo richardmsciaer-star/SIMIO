@@ -1,5 +1,6 @@
 from flask import Flask, request, jsonify, send_from_directory, render_template, Response
 import os
+from db_utils import execute_query, init_db
 import sqlite3
 import json
 import uuid
@@ -27,36 +28,6 @@ RUNNER_DIR = os.path.join(os.path.dirname(BASE_DIR), 'Runner')
 # Habilitar modo debug para desarrollo
 app.config['DEBUG'] = True
 app.config['JSON_AS_ASCII'] = False
-
-def init_db():
-    os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
-    conn = sqlite3.connect(DB_PATH)
-    cur = conn.cursor()
-    cur.execute('''CREATE TABLE IF NOT EXISTS tasks (
-                    id TEXT PRIMARY KEY,
-                    params TEXT,
-                    status TEXT,
-                    retries INTEGER DEFAULT 0,
-                    created_at TIMESTAMP,
-                    completed_at TIMESTAMP
-                )''')
-    try: cur.execute("ALTER TABLE tasks ADD COLUMN short_code TEXT")
-    except: pass
-    try: cur.execute("ALTER TABLE tasks ADD COLUMN stage TEXT")
-    except: pass
-    try: cur.execute("ALTER TABLE tasks ADD COLUMN model_id TEXT")
-    except: pass
-    try: cur.execute("ALTER TABLE tasks ADD COLUMN results TEXT")
-    except: pass
-    try: cur.execute("ALTER TABLE tasks ADD COLUMN log TEXT")
-    except: pass
-    
-    # Limpieza Automática: Fallar tareas colgadas y borrar tareas de más de 5 horas
-    cur.execute("UPDATE tasks SET status='FAILED (Canceled by restart)' WHERE status='RUNNING' OR status='PENDING'")
-    cur.execute("DELETE FROM tasks WHERE created_at < datetime('now', '-5 hours')")
-    
-    conn.commit()
-    conn.close()
 
 init_db()
 
@@ -92,12 +63,11 @@ def index():
     
     # Obtener tareas de la base de datos
     try:
-        conn = sqlite3.connect(DB_PATH)
-        conn.row_factory = sqlite3.Row
-        cur = conn.cursor()
-        cur.execute("SELECT id, status, created_at FROM tasks ORDER BY created_at DESC LIMIT 20")
-        rows = cur.fetchall()
-        conn.close()
+        
+        
+        
+        rows = execute_query('SELECT id, status, created_at FROM tasks ORDER BY created_at DESC LIMIT 20', fetchall=True)
+        
     except:
         rows = []
     
@@ -124,15 +94,11 @@ def start_task_thread(task_id, params, model_id=None):
             orch = EdgeOrchestrator(edge_url=EDGE_URL)
             log_path = os.path.join(BASE_DIR, f"{task_id}.log")
             
-            conn = sqlite3.connect(DB_PATH)
-            cur = conn.cursor()
+            
             try:
-                cur.execute("UPDATE tasks SET stage=? WHERE id=?", ("SIMULANDO", task_id))
-                conn.commit()
-            except sqlite3.OperationalError:
+                execute_query('UPDATE tasks SET stage=? WHERE id=?', ('SIMULANDO', task_id), commit=True)
+            except Exception:
                 pass
-            finally:
-                conn.close()
 
             result = orch.run(params=params, log_path=log_path, model_id=model_id)
             
@@ -142,13 +108,12 @@ def start_task_thread(task_id, params, model_id=None):
                 with open(log_path, 'r', encoding='utf-8', errors='replace') as lf:
                     log_content = lf.read()
 
-            conn = sqlite3.connect(DB_PATH)
-            cur = conn.cursor()
+            
+            
             status = "COMPLETED" if result else "FAILED"
-            cur.execute("UPDATE tasks SET status=?, completed_at=?, results=?, log=? WHERE id=?",
-                        (status, datetime.now().isoformat(), json.dumps(result) if result else None, log_content, task_id))
-            conn.commit()
-            conn.close()
+            execute_query('UPDATE tasks SET status=?, completed_at=?, results=?, log=? WHERE id=?', (status, datetime.now().isoformat(), json.dumps(result) if result else None, log_content, task_id), commit=True)
+            
+            
 
             try:
                 task_dir = os.path.join(OUTPUTS_DIR, f"Simulacion_{task_id}")
@@ -163,12 +128,11 @@ def start_task_thread(task_id, params, model_id=None):
                 print(f"No se pudo escribir archivo local: {e}")
             
         except Exception as e:
-            conn = sqlite3.connect(DB_PATH)
-            cur = conn.cursor()
-            cur.execute("UPDATE tasks SET status=?, completed_at=?, stage=? WHERE id=?",
-                        (f"ERROR: {str(e)}", datetime.now().isoformat(), "FALLIDO", task_id))
-            conn.commit()
-            conn.close()
+            
+            
+            execute_query('UPDATE tasks SET status=?, completed_at=?, stage=? WHERE id=?', (f'ERROR: {str(e)}', datetime.now().isoformat(), 'FALLIDO', task_id), commit=True)
+            
+            
     
     thread = threading.Thread(target=run_automation)
     thread.daemon = True
@@ -181,12 +145,11 @@ def create_task():
     params = data.get("parameters", {})
     model_id = data.get("model_id")
     
-    conn = sqlite3.connect(DB_PATH)
-    cur = conn.cursor()
-    cur.execute("INSERT INTO tasks (id, params, status, created_at, model_id) VALUES (?, ?, ?, ?, ?)",
-                (task_id, json.dumps(params), "PENDING", datetime.now().isoformat(), model_id))
-    conn.commit()
-    conn.close()
+    
+    
+    execute_query('INSERT INTO tasks (id, params, status, created_at, model_id) VALUES (?, ?, ?, ?, ?)', (task_id, json.dumps(params), 'PENDING', datetime.now().isoformat(), model_id), commit=True)
+    
+    
     
     start_task_thread(task_id, params, model_id)
     
@@ -210,13 +173,12 @@ def run_task():
                 except ValueError:
                     params[param_key] = value
     
-    conn = sqlite3.connect(DB_PATH)
-    cur = conn.cursor()
-    cur.execute("DELETE FROM tasks WHERE created_at < datetime('now', '-5 hours')")
-    cur.execute("INSERT INTO tasks (id, params, status, created_at, stage, short_code, model_id) VALUES (?, ?, ?, ?, ?, ?, ?)",
-                (task_id, json.dumps(params), "PENDING", datetime.now().isoformat(), "INICIANDO", short_code, model_id))
-    conn.commit()
-    conn.close()
+    
+    
+    execute_query("DELETE FROM tasks WHERE created_at < datetime('now', '-5 hours')", commit=True)
+    execute_query('INSERT INTO tasks (id, params, status, created_at, stage, short_code, model_id) VALUES (?, ?, ?, ?, ?, ?, ?)', (task_id, json.dumps(params), 'PENDING', datetime.now().isoformat(), 'INICIANDO', short_code, model_id), commit=True)
+    
+    
     
     start_task_thread(task_id, params, model_id)
     
@@ -225,16 +187,15 @@ def run_task():
 @app.route('/api/agent/poll', methods=['GET'])
 def agent_poll():
     try:
-        conn = sqlite3.connect(DB_PATH)
-        conn.row_factory = sqlite3.Row
-        cur = conn.cursor()
-        cur.execute("SELECT id, params, model_id FROM tasks WHERE status='PENDING' ORDER BY created_at ASC LIMIT 1")
-        row = cur.fetchone()
+        
+        
+        
+        row = execute_query("SELECT id, params, model_id FROM tasks WHERE status='PENDING' ORDER BY created_at ASC LIMIT 1", fetchone=True)
         if row:
             task_id = row['id']
-            cur.execute("UPDATE tasks SET status='RUNNING', stage='SIMULANDO' WHERE id=?", (task_id,))
-            conn.commit()
-            conn.close()
+            execute_query("UPDATE tasks SET status='RUNNING', stage='SIMULANDO' WHERE id=?", (task_id,), commit=True)
+            
+            
             
             params = json.loads(row['params']) if row['params'] else {}
             return jsonify({
@@ -242,7 +203,7 @@ def agent_poll():
                 "model_id": row['model_id'],
                 "parameters": params
             })
-        conn.close()
+        
         return jsonify({"task": None}), 200
     except Exception as e:
         return jsonify({"error": str(e)}), 500
@@ -260,18 +221,16 @@ def agent_callback():
         if not task_id:
             return jsonify({"error": "Missing task_id"}), 400
             
-        conn = sqlite3.connect(DB_PATH)
-        cur = conn.cursor()
+        
+        
         
         db_status = status
         if error_msg:
             db_status = f"ERROR: {error_msg}"
             
-        cur.execute("UPDATE tasks SET status=?, completed_at=?, stage=?, results=?, log=? WHERE id=?",
-                    (db_status, datetime.now().isoformat(), "COMPLETADO" if status == "COMPLETED" else "FALLIDO",
-                     json.dumps(results) if results else None, log_content, task_id))
-        conn.commit()
-        conn.close()
+        execute_query("UPDATE tasks SET status=?, completed_at=?, stage=?, results=?, log=? WHERE id=?", (db_status, datetime.now().isoformat(), "COMPLETADO" if status == "COMPLETED" else "FALLIDO", json.dumps(results) if results else None, log_content, task_id), commit=True)
+        
+        
         
         try:
             task_dir = os.path.join(OUTPUTS_DIR, f"Simulacion_{task_id}")
@@ -300,12 +259,11 @@ def agent_callback():
 @app.route('/task/<task_id>')
 def task_page(task_id):
     try:
-        conn = sqlite3.connect(DB_PATH)
-        conn.row_factory = sqlite3.Row
-        cur = conn.cursor()
-        cur.execute("SELECT * FROM tasks WHERE id=?", (task_id,))
-        row = cur.fetchone()
-        conn.close()
+        
+        
+        
+        row = execute_query("SELECT * FROM tasks WHERE id=?", (task_id,), fetchone=True)
+        
         
         if not row:
             return "Tarea no encontrada", 404
@@ -369,25 +327,21 @@ def task_page(task_id):
 @app.route('/api/task/<task_id>/status')
 def task_status(task_id):
     try:
-        conn = sqlite3.connect(DB_PATH)
-        conn.row_factory = sqlite3.Row
-        cur = conn.cursor()
         
-        try:
-            cur.execute('SELECT status, created_at, completed_at, stage, log FROM tasks WHERE id = ?', (task_id,))
-        except sqlite3.OperationalError:
-            cur.execute('SELECT status, created_at, completed_at, "UNKNOWN" as stage, NULL as log FROM tasks WHERE id = ?', (task_id,))
-            
-        row = cur.fetchone()
+        
+        
+        
+        row = execute_query('SELECT status, created_at, completed_at, stage, log FROM tasks WHERE id = ?', (task_id,), fetchone=True)
+        if not row:
+            row = execute_query('SELECT status, created_at, completed_at, "UNKNOWN" as stage, NULL as log FROM tasks WHERE id = ?', (task_id,), fetchone=True)
         
         if not row:
-            conn.close()
+            
             return jsonify({"error": "Task not found"}), 404
             
-        cur.execute("SELECT COUNT(*) as queue_pos FROM tasks WHERE (status='RUNNING' OR status='PENDING') AND created_at < ?", (row['created_at'],))
-        queue_row = cur.fetchone()
+        queue_row = execute_query("SELECT COUNT(*) as queue_pos FROM tasks WHERE (status='RUNNING' OR status='PENDING') AND created_at < ?", (row['created_at'],), fetchone=True)
         queue_pos = queue_row['queue_pos'] if queue_row else 0
-        conn.close()
+        
             
         log_content = None
         log_path = os.path.join(BASE_DIR, f"{task_id}.log")
@@ -422,15 +376,11 @@ def task_status(task_id):
 @app.route('/task/code/<short_code>')
 def task_by_code(short_code):
     try:
-        conn = sqlite3.connect(DB_PATH)
-        conn.row_factory = sqlite3.Row
-        cur = conn.cursor()
-        try:
-            cur.execute("SELECT id FROM tasks WHERE short_code=?", (short_code.upper(),))
-            row = cur.fetchone()
-        except sqlite3.OperationalError:
-            row = None
-        conn.close()
+        
+        
+        
+        row = execute_query("SELECT id FROM tasks WHERE short_code=?", (short_code.upper(),), fetchone=True)
+        
         if row:
             from flask import redirect
             return redirect(f"/task/{row['id']}")
@@ -492,12 +442,11 @@ def run_simio():
     model_id = data.get("model_id")
     task_id = str(uuid.uuid4())
     
-    conn = sqlite3.connect(DB_PATH)
-    cur = conn.cursor()
-    cur.execute("INSERT INTO tasks (id, params, status, created_at, model_id) VALUES (?, ?, ?, ?, ?)",
-                (task_id, json.dumps(params), "PENDING", datetime.now().isoformat(), model_id))
-    conn.commit()
-    conn.close()
+    
+    
+    execute_query('INSERT INTO tasks (id, params, status, created_at, model_id) VALUES (?, ?, ?, ?, ?)', (task_id, json.dumps(params), 'PENDING', datetime.now().isoformat(), model_id), commit=True)
+    
+    
     
     start_task_thread(task_id, params, model_id)
     
@@ -512,15 +461,15 @@ def download_csv(task_id):
                 return send_from_directory(task_dir, f, as_attachment=True)
                 
     try:
-        conn = sqlite3.connect(DB_PATH)
-        conn.row_factory = sqlite3.Row
-        cur = conn.cursor()
+        
+        
+        
         try:
             cur.execute("SELECT results FROM tasks WHERE id=?", (task_id,))
             row = cur.fetchone()
         except sqlite3.OperationalError:
             row = None
-        conn.close()
+        
         
         if row and 'results' in row.keys() and row['results']:
             res_dict = json.loads(row['results'])

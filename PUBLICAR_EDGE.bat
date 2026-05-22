@@ -6,8 +6,8 @@ echo.
 echo Compilando ejecutable nativo para Windows x64 (Autocontenido)...
 echo.
 
-cd SimioEdgeDaemon
-dotnet publish -c Release -r win-x64 --self-contained true
+dotnet publish SimioEdgeDaemon\SimioEdgeDaemon.csproj -c Release -r win-x64 --self-contained true
+copy "SimioEdgeDaemon\INSTALAR_SERVICIO.bat" "SimioEdgeDaemon\bin\Release\net8.0\win-x64\publish\"
 
 echo.
 echo ========================================================
