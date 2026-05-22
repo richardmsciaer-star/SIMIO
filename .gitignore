@@ -1,0 +1,26 @@
+# Python environment and caches
+venv/
+Orchestrator/venv/
+__pycache__/
+*.pyc
+
+# Logs and databases
+*.log
+Orchestrator/*.log
+jobs.db
+Orchestrator/jobs.db
+*.db
+
+# Temporary outputs
+Outputs/
+Orchestrator/outputs/
+py_out.txt
+py_out_utf8.txt
+
+# .NET Build outputs
+[Dd]ebug/
+[Rr]elease/
+[Bb]in/
+[Oo]bj/
+SimioEdgeDaemon/bin/
+SimioEdgeDaemon/obj/

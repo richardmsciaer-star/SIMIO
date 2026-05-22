@@ -1,0 +1,763 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tarea {{ task.id[:8] }} | Simio Agent Pro</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400&display=swap" rel="stylesheet">
+    <link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/1.13.6/css/jquery.dataTables.min.css">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Inter', sans-serif;
+            background: #0a0e1a;
+            color: #e0e6f0;
+            min-height: 100vh;
+        }
+        .header {
+            background: linear-gradient(135deg, #0d1321 0%, #1a1f35 100%);
+            border-bottom: 1px solid rgba(99, 179, 237, 0.15);
+            padding: 18px 32px;
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+        .header a { color: #63b3ed; text-decoration: none; font-weight: 600; font-size: 15px; }
+        .header a:hover { text-decoration: underline; }
+        .header h1 { font-size: 20px; font-weight: 700; color: #c0cad8; }
+
+        .container { max-width: 1000px; margin: 24px auto; padding: 0 24px; }
+
+        .card {
+            background: linear-gradient(145deg, #111827 0%, #0f1524 100%);
+            border: 1px solid rgba(99, 179, 237, 0.1);
+            border-radius: 16px;
+            padding: 24px;
+            margin-bottom: 20px;
+        }
+        .card h2 {
+            font-size: 16px;
+            font-weight: 600;
+            color: #63b3ed;
+            margin-bottom: 16px;
+        }
+
+        /* Status */
+        .status-big {
+            display: inline-block;
+            padding: 6px 16px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 700;
+            letter-spacing: 1px;
+        }
+        .status-PENDING   { background: rgba(234, 179, 8, 0.15); color: #eab308; }
+        .status-RUNNING   { background: rgba(59, 130, 246, 0.15); color: #3b82f6; }
+        .status-COMPLETED { background: rgba(34, 197, 94, 0.15); color: #22c55e; }
+        .status-FAILED    { background: rgba(239, 68, 68, 0.15); color: #ef4444; }
+
+        /* Stage Pipeline */
+        .pipeline {
+            display: flex;
+            gap: 4px;
+            margin-top: 16px;
+            flex-wrap: wrap;
+        }
+        .stage {
+            flex: 1;
+            min-width: 90px;
+            text-align: center;
+            padding: 10px 6px;
+            border-radius: 8px;
+            font-size: 10px;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+            background: rgba(255,255,255,0.03);
+            color: #445566;
+            border: 1px solid rgba(255,255,255,0.04);
+            transition: all 0.5s;
+        }
+        .stage.active {
+            background: rgba(59, 130, 246, 0.2);
+            color: #60a5fa;
+            border-color: rgba(59, 130, 246, 0.4);
+            animation: glow 1.5s ease-in-out infinite;
+        }
+        .stage.done {
+            background: rgba(34, 197, 94, 0.12);
+            color: #4ade80;
+            border-color: rgba(34, 197, 94, 0.25);
+        }
+        .stage.error {
+            background: rgba(239, 68, 68, 0.15);
+            color: #f87171;
+            border-color: rgba(239, 68, 68, 0.3);
+        }
+        .stage .stage-icon { font-size: 16px; display: block; margin-bottom: 4px; }
+        @keyframes glow {
+            0%, 100% { box-shadow: 0 0 0 0 rgba(59,130,246,0); }
+            50% { box-shadow: 0 0 12px 2px rgba(59,130,246,0.3); }
+        }
+
+        /* Live Log */
+        .log-container {
+            background: #080c16;
+            border: 1px solid rgba(99, 179, 237, 0.08);
+            border-radius: 10px;
+            padding: 14px;
+            max-height: 250px;
+            overflow-y: auto;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 12px;
+            line-height: 1.6;
+            color: #8899aa;
+        }
+        .log-container::-webkit-scrollbar { width: 6px; }
+        .log-container::-webkit-scrollbar-thumb { background: rgba(99,179,237,0.15); border-radius: 3px; }
+        .log-line { white-space: pre-wrap; word-break: break-all; }
+        .log-line .ts { color: #445566; }
+
+        /* Info Grid */
+        .info-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+            gap: 10px;
+        }
+        .info-item {
+            background: rgba(13, 19, 33, 0.6);
+            border: 1px solid rgba(99, 179, 237, 0.06);
+            border-radius: 10px;
+            padding: 12px;
+        }
+        .info-item .label {
+            font-size: 10px;
+            color: #667788;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 2px;
+            overflow-wrap: break-word;
+            word-break: break-all;
+        }
+        .info-item .value { font-size: 18px; font-weight: 600; color: #e0e6f0; }
+
+        /* Params */
+        .params-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 8px;
+        }
+        .param-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 12px;
+            background: rgba(13, 19, 33, 0.4);
+            border-radius: 6px;
+            font-size: 12px;
+        }
+        .param-item .key { color: #b794f4; font-family: 'JetBrains Mono', monospace; font-size: 11px; }
+        .param-item .val { color: #e0e6f0; font-weight: 600; }
+
+        /* Charts */
+        .charts { display: grid; grid-template-columns: 1fr; gap: 12px; margin-top: 12px; }
+        .charts img {
+            width: 100%;
+            border-radius: 10px;
+            border: 1px solid rgba(99, 179, 237, 0.08);
+        }
+
+        /* Downloads */
+        .downloads { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 16px; }
+        .btn-dl {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 18px;
+            background: rgba(99, 179, 237, 0.1);
+            border: 1px solid rgba(99, 179, 237, 0.2);
+            color: #63b3ed;
+            border-radius: 8px;
+            text-decoration: none;
+            font-size: 13px;
+            font-weight: 500;
+            transition: background 0.2s;
+        }
+        .btn-dl:hover { background: rgba(99, 179, 237, 0.2); }
+
+        .error-msg {
+            background: rgba(239, 68, 68, 0.1);
+            border: 1px solid rgba(239, 68, 68, 0.2);
+            border-radius: 8px;
+            padding: 14px;
+            color: #ef4444;
+            font-size: 13px;
+            margin-top: 12px;
+        }
+
+        .meta { font-size: 12px; color: #445566; margin-top: 12px; }
+        .meta strong { color: #667788; }
+
+        /* DataTables overrides for dark theme */
+        .dataTables_wrapper {
+            margin-top: 16px;
+            color: #e0e6f0;
+            font-size: 12px;
+        }
+        table.dataTable { border-collapse: collapse; width: 100%; border-radius: 8px; overflow: hidden; }
+        table.dataTable thead th { background: #1a2235; color: #63b3ed; border-bottom: 2px solid #2d3748; padding: 10px; }
+        table.dataTable tbody td { background: #0f1524; color: #a0aec0; border-bottom: 1px solid #1a202c; padding: 8px 10px; }
+        table.dataTable tbody tr:hover td { background: #1a2235; }
+        .dataTables_wrapper .dataTables_length, .dataTables_wrapper .dataTables_filter,
+        .dataTables_wrapper .dataTables_info, .dataTables_wrapper .dataTables_processing,
+        .dataTables_wrapper .dataTables_paginate { color: #8899aa; margin-bottom: 12px; }
+        .dataTables_wrapper .dataTables_filter input { background: #1a2235; border: 1px solid #2d3748; color: #fff; padding: 4px 8px; border-radius: 4px; }
+        .dataTables_wrapper .dataTables_length select { background: #1a2235; border: 1px solid #2d3748; color: #fff; padding: 4px; border-radius: 4px; }
+        .dataTables_wrapper .dataTables_paginate .paginate_button { color: #63b3ed !important; }
+        .dataTables_wrapper .dataTables_paginate .paginate_button.current { background: #2d3748 !important; color: #fff !important; border: none; }
+        
+        /* Dashboard Charts */
+        .charts-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+            gap: 24px;
+            margin-top: 24px;
+            margin-bottom: 32px;
+        }
+        .chart-card {
+            background: rgba(13, 19, 33, 0.4);
+            border: 1px solid rgba(99, 179, 237, 0.1);
+            border-radius: 12px;
+            padding: 16px;
+            box-shadow: inset 0 0 20px rgba(0,0,0,0.5);
+        }
+        .chart-title {
+            font-size: 13px;
+            color: #8899aa;
+            margin-bottom: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            font-weight: 600;
+        }
+
+        /* PDF Export Styling overrides */
+        .pdf-mode {
+            background: #ffffff !important;
+            color: #1a202c !important;
+            padding: 24px !important;
+        }
+        .pdf-mode .card {
+            background: #ffffff !important;
+            border: 1px solid #e2e8f0 !important;
+            color: #1a202c !important;
+            box-shadow: none !important;
+            page-break-inside: avoid !important;
+            break-inside: avoid !important;
+        }
+        .pdf-mode .card:nth-of-type(2) {
+            page-break-before: always !important;
+            break-before: page !important;
+        }
+        .pdf-mode .card h2 {
+            color: #2b6cb0 !important;
+        }
+        .pdf-mode .info-grid {
+            display: flex !important;
+            flex-wrap: wrap !important;
+            gap: 12px !important;
+        }
+        .pdf-mode .info-item {
+            background: #f7fafc !important;
+            border: 1px solid #e2e8f0 !important;
+            border-left: 3px solid #3182ce !important;
+            flex: 1 1 150px !important;
+        }
+        .pdf-mode .info-item .label {
+            color: #4a5568 !important;
+        }
+        .pdf-mode .info-item .value {
+            color: #2b6cb0 !important;
+        }
+        .pdf-mode .charts-grid {
+            display: flex !important;
+            flex-direction: row !important;
+            gap: 24px !important;
+            margin-top: 24px !important;
+            margin-bottom: 32px !important;
+            page-break-inside: avoid !important;
+            break-inside: avoid !important;
+        }
+        .pdf-mode .chart-card {
+            background: #ffffff !important;
+            border: 1px solid #e2e8f0 !important;
+            box-shadow: none !important;
+            flex: 1 !important;
+            width: 48% !important;
+        }
+        .pdf-mode .chart-title {
+            color: #4a5568 !important;
+        }
+        .pdf-mode .params-grid {
+            display: flex !important;
+            flex-wrap: wrap !important;
+            gap: 8px !important;
+        }
+        .pdf-mode .param-item {
+            background: #f7fafc !important;
+            border: 1px solid #edf2f7 !important;
+            flex: 1 1 200px !important;
+        }
+        .pdf-mode .param-item .key {
+            color: #805ad5 !important;
+        }
+        .pdf-mode .param-item .val {
+            color: #2d3748 !important;
+        }
+        .pdf-mode table.dataTable {
+            border: 1px solid #cbd5e0 !important;
+            width: 100% !important;
+        }
+        .pdf-mode table.dataTable thead th {
+            background: #edf2f7 !important;
+            color: #2b6cb0 !important;
+            border-bottom: 2px solid #cbd5e0 !important;
+        }
+        .pdf-mode table.dataTable tbody td {
+            background: #ffffff !important;
+            color: #2d3748 !important;
+            border-bottom: 1px solid #e2e8f0 !important;
+        }
+        .pdf-mode .downloads,
+        .pdf-mode .dataTables_length,
+        .pdf-mode .dataTables_filter,
+        .pdf-mode .dataTables_info,
+        .pdf-mode .dataTables_paginate {
+            display: none !important;
+        }
+    </style>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+</head>
+<body>
+
+<div class="header">
+    <a href="/">← Volver</a>
+    <h1>Tarea {{ task.id[:8] }}…</h1>
+</div>
+
+<div class="container">
+
+    <!-- Status + Pipeline -->
+    <div class="card">
+        <h2>Estado de la Simulación</h2>
+        <span class="status-big status-{{ task.status }}" id="statusBadge">{{ task.status }}</span>
+        <span id="stageText" style="margin-left:12px; font-size:13px; color:#8899aa;">{{ task.stage or '' }}</span>
+        <span id="queueBadge" style="margin-left:12px; font-size:13px; color:#f59e0b; font-weight:600; display:none;"></span>
+
+        {% if task.error_msg %}
+        <div class="error-msg">{{ task.error_msg }}</div>
+        {% endif %}
+
+        <!-- Progress Pipeline -->
+        <div class="pipeline" id="pipeline">
+            <div class="stage" data-stage="INICIANDO">
+                <span class="stage-icon">🚀</span>Iniciando
+            </div>
+            <div class="stage" data-stage="MODELO CARGADO">
+                <span class="stage-icon">📂</span>Modelo Cargado
+            </div>
+            <div class="stage" data-stage="CONFIGURANDO">
+                <span class="stage-icon">⚙️</span>Configurando
+            </div>
+            <div class="stage" data-stage="SIMULANDO">
+                <span class="stage-icon">🏃</span>Simulando
+            </div>
+            <div class="stage" data-stage="EXPORTANDO">
+                <span class="stage-icon">📤</span>Exportando CSV
+            </div>
+            <div class="stage" data-stage="COMPLETADO">
+                <span class="stage-icon">✅</span>Listo
+            </div>
+        </div>
+
+        <div class="meta">
+            <strong>Ticket de Acceso Rápido:</strong> <span style="font-size:18px; font-weight:bold; color:#63b3ed; user-select:all; background:#1a2235; padding:2px 8px; border-radius:4px; margin-right:16px;">{{ task.id[:4] | upper }}</span><br>
+            <strong>ID:</strong> {{ task.id }}<br>
+            <strong>Creada:</strong> {{ task.created_at }}
+            {% if task.completed_at %}<br><strong>Completada:</strong> {{ task.completed_at }}{% endif %}
+        </div>
+    </div>
+
+    <!-- Live Log -->
+    {% if task.status in ['PENDING', 'RUNNING'] or task.log %}
+    <div class="card">
+        <h2>📟 Log en Vivo</h2>
+        <div class="log-container" id="logContainer">{{ task.log or 'Esperando...' }}</div>
+    </div>
+    {% endif %}
+
+    <div id="dashboardContent">
+    <!-- Parameters -->
+    <div class="card">
+        <h2>⚙️ Parámetros Enviados ({{ params|length }})</h2>
+        {% if params %}
+        <div class="params-grid">
+            {% for key, val in params.items() %}
+            <div class="param-item">
+                <span class="key">{{ key }}</span>
+                <span class="val">{{ val }}</span>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <p style="color:#556677; font-size:13px;">Sin parámetros</p>
+        {% endif %}
+    </div>
+
+    <!-- Results (only if completed) -->
+    {% if task.status == 'COMPLETED' %}
+    
+    {% if csv_data %}
+    <div class="card">
+        <h2>📊 Análisis de Rendimiento (Dashboard B2B)</h2>
+        <div class="info-grid" style="margin-bottom: 12px; margin-top: 12px;">
+            {% for row in csv_data %}
+            {% if loop.index > 1 %}
+            <div class="info-item" style="border-left: 3px solid #63b3ed;">
+                <div class="label" style="font-size: 11px;">{{ row[0] }}</div>
+                <div class="value" style="color: #60a5fa; font-size: 15px;">{{ "%.2f"|format(row[1]|float) }}</div>
+            </div>
+            {% endif %}
+            {% endfor %}
+        </div>
+
+        <!-- Canvas Grid para Gráficos -->
+        <div class="charts-grid">
+            <div class="chart-card">
+                <div class="chart-title">Promedios de Tiempo (Average)</div>
+                <div style="position: relative; height: 350px; width: 100%;">
+                    <canvas id="avgChart"></canvas>
+                </div>
+            </div>
+            <div class="chart-card">
+                <div class="chart-title">Picos Máximos Detectados (Maximum)</div>
+                <div style="position: relative; height: 350px; width: 100%;">
+                    <canvas id="maxChart"></canvas>
+                </div>
+            </div>
+        </div>
+        
+        <h2 style="margin-top: 32px; border-top: 1px solid rgba(255,255,255,0.05); padding-top: 16px;">🗃️ Datos Crudos (CSV)</h2>
+        <table id="resultsTable" class="display" style="width:100%">
+            <thead>
+                <tr>
+                    {% for header in csv_headers %}
+                    <th>{{ header }}</th>
+                    {% endfor %}
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in csv_data %}
+                <tr>
+                    {% for col in row %}
+                    <td>{{ col }}</td>
+                    {% endfor %}
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+        <div class="downloads" style="margin-top: 24px; padding-top: 16px; border-top: 1px solid rgba(255,255,255,0.05);">
+            <a class="btn-dl" href="/download/{{ task.id }}/csv">📄 Datos Raw (CSV)</a>
+            <button class="btn-dl" onclick="exportarPDF()" style="cursor:pointer; background:rgba(99, 179, 237, 0.1); color:#63b3ed; border:1px solid #63b3ed; font-family:'Inter', sans-serif;">📕 Descargar Dashboard (PDF)</button>
+        </div>
+    </div>
+    </div> <!-- End of dashboardContent (Moved safely) -->
+    {% endif %}
+
+    {% if stats %}
+    <div class="card">
+        <h2>📊 Resultados Estadísticos</h2>
+        <div class="info-grid">
+            {% for label, value in stats.items() %}
+            <div class="info-item">
+                <div class="label">{{ label }}</div>
+                <div class="value">{{ value }}</div>
+            </div>
+            {% endfor %}
+        </div>
+
+        <div class="charts">
+            <img src="/outputs/{{ task.id }}_hist.png" alt="Histograma" loading="lazy">
+            <img src="/outputs/{{ task.id }}_box.png" alt="Boxplot" loading="lazy">
+            <img src="/outputs/{{ task.id }}_trend.png" alt="Tendencia" loading="lazy">
+        </div>
+    </div>
+    {% endif %}
+    {% endif %}
+</div>
+
+<script src="https://code.jquery.com/jquery-3.7.0.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
+
+<script>
+$(document).ready(function() {
+    if ($('#resultsTable').length) {
+        $('#resultsTable').DataTable({
+            "pageLength": 10,
+            "language": {
+                "url": "//cdn.datatables.net/plug-ins/1.13.6/i18n/es-ES.json"
+            },
+            "scrollX": true
+        });
+    }
+});
+
+    {% if csv_data %}
+    const rawData = [
+        {% for row in csv_data %}
+        {% if loop.index > 1 %}
+        { key: "{{ row[0] }}", value: {{ row[1] }} },
+        {% endif %}
+        {% endfor %}
+    ];
+
+    const avgLabels = [];
+    const avgData = [];
+    const maxLabels = [];
+    const maxData = [];
+
+    rawData.forEach(item => {
+        if (item.key.includes('_Average')) {
+            avgLabels.push(item.key.replace('_Average', '').replace('Tally', ''));
+            avgData.push(item.value);
+        } else if (item.key.includes('_Maximum')) {
+            maxLabels.push(item.key.replace('_Maximum', '').replace('Tally', ''));
+            maxData.push(item.value);
+        }
+    });
+
+    Chart.defaults.color = '#8899aa';
+    Chart.defaults.font.family = "'Inter', sans-serif";
+    
+    if (document.getElementById('avgChart') && avgLabels.length > 0) {
+        window.avgChartInstance = new Chart(document.getElementById('avgChart'), {
+            type: 'bar',
+            data: {
+                labels: avgLabels,
+                datasets: [{
+                    label: 'Promedio (mins)',
+                    data: avgData,
+                    backgroundColor: 'rgba(99, 179, 237, 0.6)',
+                    borderColor: '#63b3ed',
+                    borderWidth: 1,
+                    borderRadius: 4
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: {
+                    y: { beginAtZero: true, grid: { color: 'rgba(255,255,255,0.05)' } },
+                    x: { grid: { display: false } }
+                }
+            }
+        });
+    }
+
+    if (document.getElementById('maxChart') && maxLabels.length > 0) {
+        window.maxChartInstance = new Chart(document.getElementById('maxChart'), {
+            type: 'polarArea',
+            data: {
+                labels: maxLabels,
+                datasets: [{
+                    label: 'Pico Máximo',
+                    data: maxData,
+                    backgroundColor: [
+                        'rgba(244, 63, 94, 0.5)', 'rgba(234, 179, 8, 0.5)',
+                        'rgba(16, 185, 129, 0.5)', 'rgba(99, 179, 237, 0.5)',
+                        'rgba(168, 85, 247, 0.5)', 'rgba(236, 72, 153, 0.5)'
+                    ],
+                    borderColor: 'rgba(255,255,255,0.1)',
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { position: 'right' } },
+                scales: {
+                    r: { grid: { color: 'rgba(255,255,255,0.1)' }, ticks: { backdropColor: 'transparent', color: '#8899aa' } }
+                }
+            }
+        });
+    }
+    {% endif %}
+
+const STAGES_ORDER = [
+    'INICIANDO', 'MODELO CARGADO', 'CONFIGURANDO', 'SIMULANDO', 'EXPORTANDO', 'COMPLETADO'
+];
+
+function exportarPDF() {
+    const btn = document.querySelector('button[onclick="exportarPDF()"]');
+    const originalText = btn.innerHTML;
+    btn.innerHTML = '⏳ Generando PDF...';
+    btn.disabled = true;
+
+    // Guardar posición de scroll original y subir a (0,0) para evitar páginas en blanco por bug de html2canvas
+    const scrollPos = window.scrollY;
+    window.scrollTo(0, 0);
+
+    const element = document.getElementById('dashboardContent');
+    
+    // Activar estilos PDF (fondo blanco, textos oscuros, ocultar botones)
+    element.classList.add('pdf-mode');
+
+    // Adaptar gráficos para fondo claro
+    if (window.avgChartInstance) {
+        window.avgChartInstance.options.scales.x.grid = { color: 'rgba(0,0,0,0.08)' };
+        window.avgChartInstance.options.scales.y.grid = { color: 'rgba(0,0,0,0.08)' };
+        if (!window.avgChartInstance.options.scales.x.ticks) window.avgChartInstance.options.scales.x.ticks = {};
+        if (!window.avgChartInstance.options.scales.y.ticks) window.avgChartInstance.options.scales.y.ticks = {};
+        window.avgChartInstance.options.scales.x.ticks.color = '#2d3748';
+        window.avgChartInstance.options.scales.y.ticks.color = '#2d3748';
+        window.avgChartInstance.update('none');
+    }
+    if (window.maxChartInstance) {
+        window.maxChartInstance.options.scales.r.grid = { color: 'rgba(0,0,0,0.08)' };
+        if (!window.maxChartInstance.options.scales.r.ticks) window.maxChartInstance.options.scales.r.ticks = {};
+        window.maxChartInstance.options.scales.r.ticks.color = '#2d3748';
+        if (!window.maxChartInstance.options.plugins) window.maxChartInstance.options.plugins = {};
+        if (!window.maxChartInstance.options.plugins.legend) window.maxChartInstance.options.plugins.legend = {};
+        if (!window.maxChartInstance.options.plugins.legend.labels) window.maxChartInstance.options.plugins.legend.labels = {};
+        window.maxChartInstance.options.plugins.legend.labels.color = '#2d3748';
+        window.maxChartInstance.update('none');
+    }
+
+    const opt = {
+        margin:       [0.4, 0.4, 0.4, 0.4],
+        filename:     'Simio_Dashboard_{{ task.id[:4] | upper }}.pdf',
+        image:        { type: 'jpeg', quality: 0.98 },
+        html2canvas:  { 
+            scale: 2, 
+            useCORS: true, 
+            backgroundColor: '#ffffff',
+            scrollX: 0,
+            scrollY: 0
+        },
+        jsPDF:        { unit: 'in', format: 'a4', orientation: 'landscape' },
+        pagebreak:    { mode: ['css', 'legacy'] }
+    };
+
+    html2pdf().set(opt).from(element).save().then(() => {
+        // Desactivar estilos PDF
+        element.classList.remove('pdf-mode');
+
+        // Revertir gráficos a modo oscuro
+        if (window.avgChartInstance) {
+            window.avgChartInstance.options.scales.x.grid = { display: false };
+            window.avgChartInstance.options.scales.y.grid = { color: 'rgba(255,255,255,0.05)' };
+            window.avgChartInstance.options.scales.x.ticks.color = '#8899aa';
+            window.avgChartInstance.options.scales.y.ticks.color = '#8899aa';
+            window.avgChartInstance.update('none');
+        }
+        if (window.maxChartInstance) {
+            window.maxChartInstance.options.scales.r.grid = { color: 'rgba(255,255,255,0.1)' };
+            window.maxChartInstance.options.scales.r.ticks.color = '#8899aa';
+            window.maxChartInstance.options.plugins.legend.labels.color = '#8899aa';
+            window.maxChartInstance.update('none');
+        }
+
+        // Restaurar posición de scroll original
+        window.scrollTo(0, scrollPos);
+
+        btn.innerHTML = originalText;
+        btn.disabled = false;
+    }).catch(err => {
+        console.error(err);
+        element.classList.remove('pdf-mode');
+        window.scrollTo(0, scrollPos);
+        btn.innerHTML = originalText;
+        btn.disabled = false;
+    });
+}
+
+function updatePipeline(currentStage, status) {
+    const stageElements = document.querySelectorAll('.stage');
+    // Map stage elements to their data-stage
+    const stageMap = {};
+    stageElements.forEach(el => { stageMap[el.dataset.stage] = el; });
+
+    let activeStage = currentStage;
+    if (status === 'COMPLETED') activeStage = 'COMPLETADO';
+
+    const pipelineOrder = STAGES_ORDER;
+    const activeIdx = pipelineOrder.indexOf(activeStage);
+
+    stageElements.forEach((el, idx) => {
+        el.classList.remove('active', 'done', 'error');
+        if (status === 'FAILED') {
+            if (idx <= activeIdx) el.classList.add('error');
+        } else if (status === 'COMPLETED') {
+            el.classList.add('done');
+        } else if (activeIdx >= 0) {
+            if (idx < activeIdx) el.classList.add('done');
+            else if (idx === activeIdx) el.classList.add('active');
+        }
+    });
+}
+
+// Initial paint
+updatePipeline({{ (task.stage or "QUEUED")|tojson }}, {{ task.status|tojson }});
+
+{% if task.status in ['PENDING', 'RUNNING'] %}
+// Poll every 3 seconds
+let lastLog = '';
+setInterval(async () => {
+    try {
+        const resp = await fetch('/api/task/{{ task.id }}/status');
+        const data = await resp.json();
+
+        // Update status badge
+        const badge = document.getElementById('statusBadge');
+        if (badge.textContent !== data.status) {
+            badge.textContent = data.status;
+            badge.className = 'status-big status-' + data.status;
+            if (data.status === 'COMPLETED' || data.status === 'FAILED') {
+                setTimeout(() => window.location.reload(), 1000);
+            }
+        }
+
+        // Update stage text
+        document.getElementById('stageText').textContent = data.stage || '';
+        
+        // Update pipeline
+        updatePipeline(data.stage, data.status);
+
+        // Update queue position
+        const queueBadge = document.getElementById('queueBadge');
+        if (data.status === 'RUNNING' || data.status === 'PENDING') {
+            if (data.queue_position > 0) {
+                queueBadge.textContent = 'En Cola: Posición ' + data.queue_position + ' (Espera estimada: ' + (data.queue_position * 2) + ' mins)';
+                queueBadge.style.display = 'inline-block';
+            } else {
+                queueBadge.style.display = 'none';
+            }
+        } else {
+            queueBadge.style.display = 'none';
+        }
+
+        // Update log
+        if (data.log && data.log !== lastLog) {
+            lastLog = data.log;
+            const logEl = document.getElementById('logContainer');
+            logEl.textContent = data.log;
+            logEl.scrollTop = logEl.scrollHeight;
+        }
+    } catch(e) {}
+}, 3000);
+{% endif %}
+</script>
+
+</body>
+</html>

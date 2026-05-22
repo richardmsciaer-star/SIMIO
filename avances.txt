@@ -1,0 +1,15 @@
+Estructura del paquete:
+
+Models/ → Aquí es donde pones CUALQUIER archivo .spfx. El sistema va a agarrar el primer .spfx que encuentre en esa carpeta, leerá sus variables automáticamente, lo correrá, y dejará el resultado en la carpeta de Outputs.
+Outputs/ → Todos los CSVs generados terminarán moviéndose acá automáticamente al finalizar cada corrida para que no se mezclen.
+Runner/ → Contiene la versión compilada final y ultra-rápida de SimioRunner.dll que construimos. Ya no necesitas compilar nada más.
+Orchestrator/ → Tiene el código en Python (app.py, orchestrator.py).
+Ojo: Reemplacé todo el código viejo de orchestrator.py que usaba automatización visual con ratón (OCR, clicks). Ahora ese archivo manda a llamar de forma directa y limpia al SimioRunner mediante consola pasándole todos los parámetros de tu web.
+RUN_SERVER.bat → Un archivo en la raíz. Solo le das doble click y levantará el servidor web para recibir peticiones, conectándose directo al Runner.
+Para probar el sistema integrado ahora mismo:
+
+Abre tu explorador de archivos y ve a D:\2026\AerostAI\AerostAI Technik\SimioOrchestratorSuite\
+Dale doble click a RUN_SERVER.bat
+Abre tu navegador web y entra a la interfaz. Las peticiones que mandes desde la web se irán directo al Runner que acabamos de arreglar.
+Nota: Si quieres que la simulación termine rápido para probar el flujo completo de la web, manda el parámetro RunLength = 2 desde tu frontend. ¡Ya todo debería fluir de inicio a fin!
+

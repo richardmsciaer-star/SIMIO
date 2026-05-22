@@ -1,0 +1,723 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simio Agent Pro</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Inter', sans-serif;
+            background: #0a0e1a;
+            color: #e0e6f0;
+            min-height: 100vh;
+        }
+
+        /* Header */
+        .header {
+            background: linear-gradient(135deg, #0d1321 0%, #1a1f35 100%);
+            border-bottom: 1px solid rgba(99, 179, 237, 0.15);
+            padding: 18px 32px;
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+        .header h1 {
+            font-size: 22px;
+            font-weight: 700;
+            background: linear-gradient(90deg, #63b3ed, #b794f4);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .header .badge {
+            background: rgba(99, 179, 237, 0.15);
+            color: #63b3ed;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: 600;
+            letter-spacing: 1px;
+        }
+
+        /* Layout */
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 32px 24px;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 32px;
+        }
+        @media (max-width: 900px) {
+            .container { grid-template-columns: 1fr; }
+        }
+
+        /* Cards */
+        .card {
+            background: linear-gradient(145deg, #111827 0%, #0f1524 100%);
+            border: 1px solid rgba(99, 179, 237, 0.1);
+            border-radius: 16px;
+            padding: 28px;
+            transition: border-color 0.3s;
+        }
+        .card:hover { border-color: rgba(99, 179, 237, 0.3); }
+        .card h2 {
+            font-size: 18px;
+            font-weight: 600;
+            color: #63b3ed;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .card h2 .icon { font-size: 22px; }
+
+        /* Model Selector */
+        .model-selector {
+            width: 100%;
+            padding: 12px 16px;
+            background: #0d1321;
+            border: 1px solid rgba(99, 179, 237, 0.2);
+            border-radius: 10px;
+            color: #e0e6f0;
+            font-family: 'Inter', sans-serif;
+            font-size: 14px;
+            cursor: pointer;
+            appearance: none;
+            -webkit-appearance: none;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='%2363b3ed' viewBox='0 0 16 16'%3E%3Cpath d='M1.646 4.646a.5.5 0 0 1 .708 0L8 10.293l5.646-5.647a.5.5 0 0 1 .708.708l-6 6a.5.5 0 0 1-.708 0l-6-6a.5.5 0 0 1 0-.708z'/%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 16px center;
+            padding-right: 40px;
+        }
+        .model-selector:focus {
+            outline: none;
+            border-color: #63b3ed;
+            box-shadow: 0 0 0 3px rgba(99, 179, 237, 0.15);
+        }
+        .model-selector option { background: #0d1321; }
+
+        .model-desc {
+            margin-top: 10px;
+            font-size: 13px;
+            color: #8899aa;
+            font-style: italic;
+        }
+
+        /* Form Fields */
+        .fields-scroll {
+            max-height: 65vh;
+            overflow-y: auto;
+            padding-right: 8px;
+        }
+        .fields-scroll::-webkit-scrollbar { width: 6px; }
+        .fields-scroll::-webkit-scrollbar-track { background: transparent; }
+        .fields-scroll::-webkit-scrollbar-thumb { background: rgba(99,179,237,0.2); border-radius: 3px; }
+
+        .field-group {
+            margin-top: 20px;
+        }
+        .field-group-title {
+            font-size: 12px;
+            font-weight: 600;
+            color: #b794f4;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            margin-bottom: 12px;
+            padding-bottom: 6px;
+            border-bottom: 1px solid rgba(183, 148, 244, 0.15);
+            position: sticky;
+            top: 0;
+            background: #111827;
+            z-index: 2;
+            padding-top: 4px;
+        }
+        .fields-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px 16px;
+        }
+        .field {
+            margin-bottom: 4px;
+        }
+        .replicas-field {
+            grid-column: 1 / -1;
+            background: rgba(234, 179, 8, 0.1);
+            border: 1px solid rgba(234, 179, 8, 0.3);
+            border-radius: 8px;
+            padding: 12px;
+            margin-bottom: 8px;
+        }
+        .replicas-warning {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: rgba(234, 179, 8, 0.15);
+            border-left: 3px solid #eab308;
+            padding: 8px 12px;
+            border-radius: 4px;
+            margin-bottom: 8px;
+            font-size: 11px;
+            color: #eab308;
+        }
+        .warning-icon {
+            font-size: 14px;
+        }
+        .warning-text {
+            font-weight: 500;
+        }
+        .field label {
+            display: block;
+            font-size: 12px;
+            font-weight: 500;
+            color: #c0cad8;
+            margin-bottom: 4px;
+        }
+        .field .field-desc {
+            font-size: 10px;
+            color: #667788;
+            margin-bottom: 4px;
+        }
+        .field input[type="number"],
+        .field input[type="text"] {
+            width: 100%;
+            padding: 8px 12px;
+            background: #0d1321;
+            border: 1px solid rgba(99, 179, 237, 0.2);
+            border-radius: 8px;
+            color: #e0e6f0;
+            font-family: 'Inter', sans-serif;
+            font-size: 13px;
+            transition: border-color 0.2s, box-shadow 0.2s;
+        }
+        .field input[type="number"]:focus,
+        .field input[type="text"]:focus {
+            outline: none;
+            border-color: #63b3ed;
+            box-shadow: 0 0 0 3px rgba(99, 179, 237, 0.15);
+        }
+        .field input::placeholder { color: #4a5568; }
+
+        /* Toggle switch for checkboxes */
+        .toggle-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 8px 12px;
+            background: #0d1321;
+            border: 1px solid rgba(99, 179, 237, 0.1);
+            border-radius: 8px;
+        }
+        .toggle-row label {
+            margin-bottom: 0;
+            font-size: 12px;
+        }
+        .toggle {
+            position: relative;
+            width: 42px;
+            height: 22px;
+            flex-shrink: 0;
+        }
+        .toggle input { opacity: 0; width: 0; height: 0; }
+        .toggle .slider {
+            position: absolute;
+            cursor: pointer;
+            inset: 0;
+            background: #2a3040;
+            border-radius: 22px;
+            transition: background 0.25s;
+        }
+        .toggle .slider::before {
+            content: '';
+            position: absolute;
+            width: 16px;
+            height: 16px;
+            left: 3px;
+            bottom: 3px;
+            background: #667;
+            border-radius: 50%;
+            transition: transform 0.25s, background 0.25s;
+        }
+        .toggle input:checked + .slider { background: #2563eb; }
+        .toggle input:checked + .slider::before { transform: translateX(20px); background: #fff; }
+
+        /* Variable count badge */
+        .var-count {
+            display: inline-block;
+            background: rgba(183, 148, 244, 0.15);
+            color: #b794f4;
+            padding: 2px 8px;
+            border-radius: 10px;
+            font-size: 11px;
+            margin-left: 8px;
+        }
+
+        /* Button */
+        .btn-run {
+            margin-top: 20px;
+            width: 100%;
+            padding: 14px 24px;
+            background: linear-gradient(135deg, #2563eb 0%, #7c3aed 100%);
+            color: #fff;
+            border: none;
+            border-radius: 10px;
+            font-family: 'Inter', sans-serif;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.15s, box-shadow 0.3s;
+            letter-spacing: 0.5px;
+        }
+        .btn-run:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(37, 99, 235, 0.35);
+        }
+        .btn-run:active { transform: translateY(0); }
+        .btn-run:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        /* Empty state */
+        .no-fields {
+            color: #556677;
+            font-size: 14px;
+            text-align: center;
+            padding: 40px 20px;
+        }
+
+        /* Task List */
+        .task-list { list-style: none; }
+        .task-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 14px 16px;
+            border-radius: 10px;
+            margin-bottom: 8px;
+            background: rgba(13, 19, 33, 0.6);
+            border: 1px solid rgba(99, 179, 237, 0.06);
+            transition: background 0.2s;
+            cursor: pointer;
+            text-decoration: none;
+            color: inherit;
+        }
+        .task-item:hover { background: rgba(99, 179, 237, 0.06); }
+        .task-item .task-id {
+            font-size: 13px;
+            font-weight: 500;
+            color: #93a3b8;
+            font-family: 'Courier New', monospace;
+        }
+        .task-item .task-time {
+            font-size: 11px;
+            color: #556677;
+        }
+
+        /* Status badge */
+        .status {
+            padding: 4px 10px;
+            border-radius: 6px;
+            font-size: 11px;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+        }
+        .status-PENDING   { background: rgba(234, 179, 8, 0.15); color: #eab308; }
+        .status-RUNNING   { background: rgba(59, 130, 246, 0.15); color: #3b82f6; }
+        .status-COMPLETED { background: rgba(34, 197, 94, 0.15); color: #22c55e; }
+        .status-FAILED    { background: rgba(239, 68, 68, 0.15); color: #ef4444; }
+
+        .empty-tasks {
+            text-align: center;
+            padding: 40px;
+            color: #445566;
+            font-size: 14px;
+        }
+
+        /* Toast */
+        .toast {
+            position: fixed;
+            bottom: 24px;
+            right: 24px;
+            background: #1a1f35;
+            border: 1px solid rgba(34, 197, 94, 0.3);
+            color: #22c55e;
+            padding: 14px 24px;
+            border-radius: 10px;
+            font-size: 14px;
+            display: none;
+            z-index: 100;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+        }
+        .toast.show { display: block; animation: slideUp 0.3s ease; }
+        @keyframes slideUp {
+            from { transform: translateY(20px); opacity: 0; }
+            to   { transform: translateY(0);    opacity: 1; }
+        }
+        
+        /* Modal */
+        .modal-overlay {
+            display: none;
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.8);
+            backdrop-filter: blur(4px);
+            z-index: 1000;
+            justify-content: center; align-items: center;
+        }
+        .modal-content {
+            background: #0d1321;
+            border: 1px solid rgba(99, 179, 237, 0.3);
+            border-radius: 12px;
+            padding: 32px;
+            width: 100%; max-width: 400px;
+            text-align: center;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+        }
+        .modal-content h2 { margin-top: 0; color: #fff; font-size: 18px; margin-bottom: 12px; }
+        .modal-content p { color: #8899aa; font-size: 14px; margin-bottom: 24px; line-height: 1.5; }
+        .token-box {
+            background: #1a2235;
+            border: 2px dashed #63b3ed;
+            color: #63b3ed;
+            font-size: 32px;
+            font-weight: bold;
+            letter-spacing: 0.1em;
+            padding: 16px;
+            border-radius: 8px;
+            margin-bottom: 24px;
+            user-select: all;
+        }
+    </style>
+</head>
+<body>
+
+<div class="header">
+    <h1>✈️ Simio Agent Pro</h1>
+    <span class="badge">SIMULACIÓN AEROPORTUARIA</span>
+</div>
+
+<div class="container">
+    <!-- LEFT: Simulation Form -->
+    <div class="card">
+        <h2><span class="icon">⚙️</span> Nueva Simulación</h2>
+
+        <form id="simForm" method="POST" action="/run-task">
+            <!-- Model selector -->
+            <select class="model-selector" name="model_id" id="modelSelect" onchange="loadModelFields()">
+                <option value="">— Seleccionar modelo —</option>
+                {% for model in config.models %}
+                <option value="{{ model.id }}"
+                        data-desc="{{ model.description }}"
+                        data-groups='{{ model.groups | tojson }}'>
+                    {{ model.name }}
+                </option>
+                {% endfor %}
+            </select>
+            <div id="modelDesc" class="model-desc"></div>
+
+            <!-- Dynamic fields container (scrollable) -->
+            <div id="fieldsContainer" class="fields-scroll">
+                <div class="no-fields">Seleccioná un modelo para ver sus variables de simulación</div>
+            </div>
+
+            <button type="submit" class="btn-run" id="btnRun" disabled>
+                🚀 Lanzar Simulación
+            </button>
+        </form>
+        
+        <div style="margin-top: 20px; padding-top: 20px; border-top: 1px solid rgba(99, 179, 237, 0.2);">
+            <div style="margin-bottom: 12px; font-size: 13px; color: #63b3ed; font-weight: 600;">¿Tienes un Ticket de Simulación?</div>
+            <div style="display: flex; gap: 8px;">
+                <input type="text" id="recoverCode" placeholder="Ej: A4F1" style="background:#0d1321; border:1px solid rgba(99,179,237,0.2); color:#fff; border-radius:6px; padding:8px 12px; width:100px; text-transform:uppercase;">
+                <button onclick="recoverTask()" class="btn-run" style="background: rgba(99, 179, 237, 0.1); border: 1px solid rgba(99, 179, 237, 0.3); padding: 8px 16px; width: auto; font-size: 13px;">Recuperar</button>
+            </div>
+            <p style="font-size: 11px; color: #667788; margin-top: 8px;">Las simulaciones completadas no vistas en 5 horas se eliminan automáticamente del servidor para ahorrar espacio.</p>
+        </div>
+    </div>
+
+    <!-- RIGHT: Task History -->
+    <div class="card">
+        <h2><span class="icon">📋</span> Tareas Recientes</h2>
+
+        {% if tasks %}
+        <ul class="task-list">
+            {% for t in tasks %}
+            <a href="/task/{{ t.id }}" class="task-item">
+                <div>
+                    <div class="task-id">{{ t.id[:8] }}…</div>
+                    <div class="task-time">{{ t.created_at }}</div>
+                </div>
+                <span class="status status-{{ t.status }}">{{ t.status }}</span>
+            </a>
+            {% endfor %}
+        </ul>
+        {% else %}
+        <div class="empty-tasks">No hay tareas. Lanzá tu primera simulación →</div>
+        {% endif %}
+    </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<!-- Modal Token -->
+<div class="modal-overlay" id="tokenModal">
+    <div class="modal-content">
+        <h2>🎟️ Tu Ticket de Recuperación</h2>
+        <p>Por favor, <strong>anota o copia este código único</strong>. Te servirá para recuperar tus resultados desde cualquier dispositivo por si cierras el navegador, se corta internet o la simulación tarda varias horas.</p>
+        <div class="token-box" id="tokenDisplay">----</div>
+        <button id="btnProceedModal" class="btn-run" style="background: linear-gradient(135deg, #059669 0%, #22c55e 100%);">Entendido, ir a la simulación</button>
+    </div>
+</div>
+
+<script>
+async function loadModelFields() {
+    const sel = document.getElementById('modelSelect');
+    const opt = sel.options[sel.selectedIndex];
+    const desc = opt.dataset.desc || '';
+    const container = document.getElementById('fieldsContainer');
+    const btn = document.getElementById('btnRun');
+
+    document.getElementById('modelDesc').textContent = desc;
+
+    if (!sel.value) {
+        container.innerHTML = '<div class="no-fields">Seleccioná un modelo para ver sus variables de simulación</div>';
+        btn.disabled = true;
+        return;
+    }
+
+    container.innerHTML = '<div class="no-fields">⏳ Analizando archivo .spfx para extraer variables... (esto puede tardar unos segundos)</div>';
+    btn.disabled = true;
+    
+    let groups = [];
+    try {
+        const resp = await fetch('/api/model/' + encodeURIComponent(sel.value) + '/variables');
+        if (resp.ok) {
+            const data = await resp.json();
+            groups = data.groups || [];
+        } else {
+            container.innerHTML = '<div class="no-fields" style="color:#ef4444">❌ Error al extraer variables del modelo.</div>';
+            return;
+        }
+    } catch (e) {
+        container.innerHTML = '<div class="no-fields" style="color:#ef4444">❌ Error de conexión al extraer variables.</div>';
+        return;
+    }
+
+    let html = '';
+    let totalFields = 0;
+    for (const group of groups) {
+        html += `<div class="field-group">`;
+        html += `<div class="field-group-title">${group.title} <span class="var-count">${group.fields.length}</span></div>`;
+        html += `<div class="fields-grid">`;
+        for (const field of group.fields) {
+            totalFields++;
+            const descText = field.description || '';
+            const step = field.step || 'any';
+            const min = field.min !== undefined ? `min="${field.min}"` : '';
+            const max = field.max !== undefined ? `max="${field.max}"` : '';
+
+            if (field.type === 'checkbox') {
+                const checked = field.default ? 'checked' : '';
+                html += `
+                    <div class="field">
+                        <div class="toggle-row">
+                            <label>${field.label}</label>
+                            <label class="toggle">
+                                <input type="checkbox"
+                                       name="param_${field.key}"
+                                       value="true"
+                                       ${checked}>
+                                <span class="slider"></span>
+                            </label>
+                        </div>
+                        ${descText ? `<div class="field-desc">${descText}</div>` : ''}
+                    </div>`;
+            } else {
+                const isCritical = field.key === 'Replications' || field.key === 'RunLength';
+                const defaultValue = isCritical ? "1" : field.default;
+                
+                const warningBanner = isCritical ? `
+                    <div class="replicas-warning" id="warn_${field.key}" style="display: none; transition: all 0.3s;">
+                        <span class="warning-icon" id="icon_${field.key}">⚠️</span>
+                        <span class="warning-text" id="text_${field.key}">Valor crítico alto: Incrementa el tiempo de ejecución.</span>
+                    </div>` : '';
+                html += `
+                    <div class="field${isCritical ? ' replicas-field' : ''}">
+                        <label for="param_${field.key}" id="label_${field.key}" style="${isCritical ? 'color:#63b3ed; font-weight:bold;' : ''}">${field.label}</label>
+                        ${descText ? `<div class="field-desc">${descText}</div>` : ''}
+                        ${warningBanner}
+                        <input type="${field.type}"
+                               name="param_${field.key}"
+                               id="param_${field.key}"
+                               value="${defaultValue}"
+                               step="${step}"
+                               ${min} ${max}
+                               ${isCritical ? `oninput="checkCritical('${field.key}')"` : ''}
+                               placeholder="${field.label}">
+                    </div>`;
+            }
+        }
+        html += `</div></div>`;
+    }
+
+    if (html === '') {
+        html = '<div class="no-fields">Este modelo no tiene variables configurables</div>';
+    }
+
+    container.innerHTML = html;
+    btn.disabled = false;
+    btn.textContent = `🚀 Lanzar Simulación (${totalFields} variables)`;
+
+    // Disparar las validaciones iniciales
+    if (document.getElementById('param_Replications')) checkCritical('Replications');
+    if (document.getElementById('param_RunLength')) checkCritical('RunLength');
+}
+
+// Form submission via AJAX
+document.getElementById('simForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    const btn = document.getElementById('btnRun');
+    btn.disabled = true;
+    btn.textContent = '⏳ Encolando…';
+
+    const formData = new FormData(this);
+
+    // Ensure unchecked checkboxes are sent as "false"
+    this.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+        if (!cb.checked) {
+            formData.set(cb.name, 'false');
+        }
+    });
+
+    try {
+        const resp = await fetch('/run-task', { method: 'POST', body: formData });
+        const data = await resp.json();
+        if (data.task_id) {
+            showToast(`✅ Tarea encolada.`);
+            const shortCode = data.task_id.substring(0, 4).toUpperCase();
+            
+            // Show modal
+            document.getElementById('tokenDisplay').innerText = shortCode;
+            document.getElementById('tokenModal').style.display = 'flex';
+            
+            // Setup click to proceed
+            document.getElementById('btnProceedModal').onclick = function() {
+                window.location.href = `/task/${data.task_id}`;
+            };
+        } else {
+            showToast(`❌ Error: ${data.error || 'desconocido'}`);
+            btn.disabled = false;
+            btn.textContent = '🚀 Lanzar Simulación';
+        }
+    } catch(err) {
+        showToast(`❌ Error de red: ${err.message}`);
+        btn.disabled = false;
+        btn.textContent = '🚀 Lanzar Simulación';
+    }
+});
+
+function showToast(msg) {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.classList.add('show');
+    setTimeout(() => t.classList.remove('show'), 4000);
+}
+function checkCritical(key) {
+    const input = document.getElementById('param_' + key);
+    if (!input) return;
+    
+    const val = parseFloat(input.value) || 0;
+    const warn = document.getElementById('warn_' + key);
+    const text = document.getElementById('text_' + key);
+    const icon = document.getElementById('icon_' + key);
+    const label = document.getElementById('label_' + key);
+
+    if (val <= 1) {
+        warn.style.display = 'none';
+        input.style.borderColor = 'rgba(99, 179, 237, 0.2)';
+        input.style.boxShadow = 'none';
+        label.style.color = '#63b3ed';
+    } else if (val === 2) {
+        warn.style.display = 'flex';
+        warn.style.background = 'rgba(234, 179, 8, 0.15)';
+        warn.style.borderLeftColor = '#eab308';
+        warn.style.color = '#eab308';
+        text.innerText = 'ADVERTENCIA: Aumentar este valor generará demoras en la ejecución.';
+        icon.innerText = '⚠️';
+        input.style.borderColor = '#eab308';
+        label.style.color = '#eab308';
+    } else if (val >= 3) {
+        warn.style.display = 'flex';
+        warn.style.background = 'rgba(239, 68, 68, 0.15)';
+        warn.style.borderLeftColor = '#ef4444';
+        warn.style.color = '#ef4444';
+        text.innerText = 'CRÍTICO: Tiempos de simulación extremadamente largos. Considere bajar el número o ejecutar offline.';
+        icon.innerText = '🚨';
+        input.style.borderColor = '#ef4444';
+        input.style.boxShadow = '0 0 0 3px rgba(239, 68, 68, 0.15)';
+        label.style.color = '#ef4444';
+    }
+}
+
+function recoverTask() {
+    const code = document.getElementById('recoverCode').value.trim();
+    if (!code) return;
+    window.location.href = '/task/code/' + code;
+}
+
+
+async function runFullAutomation() {
+    const btn = document.querySelector('button[onclick="runFullAutomation()"]');
+    btn.disabled = true;
+    btn.textContent = '⏳ Ejecutando...';
+    showToast('🚀 Iniciando automatización completa...');
+
+    // Recolectar parámetros del formulario
+    const form = document.getElementById('simForm');
+    const params = {};
+    new FormData(form).forEach((value, key) => {
+        if (key.startsWith('param_')) {
+            const paramKey = key.substring(6); // quitar "param_"
+            // Convertir tipos
+            if (value === 'true') params[paramKey] = true;
+            else if (value === 'false') params[paramKey] = false;
+            else if (!isNaN(value) && value !== '') params[paramKey] = parseFloat(value);
+            else params[paramKey] = value;
+        }
+    });
+    // Checkboxes desmarcados no aparecen en FormData, forzar como false
+    form.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+        if (!cb.checked) params[cb.name.substring(6)] = false;
+    });
+
+    const paramCount = Object.keys(params).length;
+    showToast(`📦 Enviando ${paramCount} parámetros al orquestador...`);
+
+    try {
+        const resp = await fetch('/api/run-simio', { 
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ parameters: params })
+        });
+        const data = await resp.json();
+        if (data.task_id) {
+            showToast(`✅ Automatización iniciada: ${data.task_id.substring(0,8)}…`);
+            setTimeout(() => {
+                window.location.href = `/task/${data.task_id}`;
+            }, 1500);
+        } else {
+            showToast(`❌ Error: ${data.error || 'desconocido'}`);
+            btn.disabled = false;
+            btn.textContent = '▶️ Ejecutar Automatización Completa';
+        }
+    } catch(err) {
+        showToast(`❌ Error de red: ${err.message}`);
+        btn.disabled = false;
+        btn.textContent = '▶️ Ejecutar Automatización Completa';
+    }
+}
+</script>
+</body>
+</html>
