@@ -1,4 +1,2 @@
-pyautogui
-pywin32
-pillow
-pytesseract
+flask
+requests

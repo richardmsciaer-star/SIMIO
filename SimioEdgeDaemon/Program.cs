@@ -9,6 +9,7 @@ using System.Reflection;
 using System.Runtime.Loader;
 using System.Text.Json;
 using System.Threading;
+using System.Threading.Tasks;
 using System.Collections.Generic;
 using SimioAPI;
 
@@ -18,7 +19,6 @@ namespace SimioEdgeDaemon
     {
         public static void Main(string[] args)
         {
-            // [1] CARGA NATIVA EN MEMORIA: Previene el error de "SimioAPI no encontrado" al aislar el Assembly Resolver del JIT.
             string simioDir = @"C:\Program Files\Simio LLC\Simio";
             AssemblyLoadContext.Default.Resolving += (ctx, name) => {
                 string p = Path.Combine(simioDir, name.Name + ".dll");
@@ -27,7 +27,6 @@ namespace SimioEdgeDaemon
             string originalDir = Directory.GetCurrentDirectory();
             Environment.CurrentDirectory = simioDir;
 
-            // Delegamos a un método separado para asegurar que el JIT Compiler no intente resolver SimioAPI antes de asignar el handler.
             RunServer(args, simioDir, originalDir);
         }
 
@@ -40,10 +39,7 @@ namespace SimioEdgeDaemon
             var factory = simioAsm.GetTypes().First(t => t.Name == "SimioProjectFactory");
             var loadMeth = factory.GetMethod("LoadProject", new[] { typeof(string), typeof(string[]).MakeByRefType() })!;
 
-            // Directorio local de modelos del cliente (resolución de ruta absoluta respecto al directorio original)
             string modelsDir = builder.Configuration["ModelsDir"] ?? Path.Combine(originalDir, "..", "Models");
-
-            // Diccionario para mantener proyectos en RAM
             var loadedProjects = new Dictionary<string, ISimioProject>(StringComparer.OrdinalIgnoreCase);
 
             ISimioProject GetOrLoadProject(string modelId) {
@@ -57,7 +53,241 @@ namespace SimioEdgeDaemon
                 }
             }
 
-            // Endpoint para extraer variables
+            var runSimulationInline = (string modelId, Dictionary<string, string> parameters, List<string> logLines) => {
+                var project = GetOrLoadProject(modelId);
+                var model = project.Models.FirstOrDefault(m => m.Experiments.Count > 0) ?? project.Models[0];
+                var exp = model.Experiments[0];
+                var scenario = exp.Scenarios[0];
+                
+                var swReset = System.Diagnostics.Stopwatch.StartNew();
+                var swRun = new System.Diagnostics.Stopwatch();
+                
+                logLines.Add($"[{DateTime.Now:HH:mm:ss}] exp.Reset() START");
+                exp.Reset();
+                swReset.Stop();
+                logLines.Add($"[{DateTime.Now:HH:mm:ss}] exp.Reset() DONE in {swReset.ElapsedMilliseconds}ms");
+
+                foreach (var param in parameters) {
+                    if (param.Key.Equals("RunLength", StringComparison.OrdinalIgnoreCase)) {
+                        if (double.TryParse(param.Value, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out double rl)) {
+                            try {
+                                var modelRunSetupProp = model.GetType().GetProperty("RunSetup", BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
+                                if (modelRunSetupProp != null) {
+                                    var runSetup = modelRunSetupProp.GetValue(model);
+                                    var stProp = runSetup.GetType().GetProperty("StartingTime", BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
+                                    var endProp = runSetup.GetType().GetProperty("EndingTime", BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
+                                    if (stProp != null && endProp != null) {
+                                        DateTime st = (DateTime)stProp.GetValue(runSetup);
+                                        endProp.SetValue(runSetup, st.AddHours(rl));
+                                        logLines.Add($"[{DateTime.Now:HH:mm:ss}] RunLength set to {rl}h via 'RunSetup.EndingTime'");
+                                    }
+                                }
+                                
+                                var controlControl = exp.Controls.FirstOrDefault(c => c.Name.Equals("RunLength", StringComparison.OrdinalIgnoreCase));
+                                if (controlControl != null) {
+                                    scenario.SetControlValue(controlControl, param.Value);
+                                    logLines.Add($"[{DateTime.Now:HH:mm:ss}] RunLength set via Scenario Controls");
+                                }
+                            } catch (Exception ex) {
+                                logLines.Add($"[{DateTime.Now:HH:mm:ss}] WARN - Exception setting RunLength: {ex.Message}");
+                            }
+                        }
+                        continue;
+                    }
+                    if (param.Key.Equals("Replications", StringComparison.OrdinalIgnoreCase)) {
+                        if (double.TryParse(param.Value, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out double repD)) {
+                            scenario.ReplicationsRequired = Math.Max(1, (int)repD);
+                            logLines.Add($"[{DateTime.Now:HH:mm:ss}] ReplicationsRequired = {scenario.ReplicationsRequired}");
+                        }
+                        continue;
+                    }
+                    
+                    var control = exp.Controls.FirstOrDefault(c => c.Name.Equals(param.Key, StringComparison.OrdinalIgnoreCase));
+                    if (control != null) {
+                        string safeValue = string.IsNullOrWhiteSpace(param.Value) ? "0" : param.Value;
+                        scenario.SetControlValue(control, safeValue);
+                        logLines.Add($"[{DateTime.Now:HH:mm:ss}] Escrito en {param.Key} = '{safeValue}'");
+                    } else {
+                        logLines.Add($"[{DateTime.Now:HH:mm:ss}] WARN - Control no encontrado para: {param.Key} = '{param.Value}'");
+                    }
+                }
+
+                logLines.Add($"[{DateTime.Now:HH:mm:ss}] exp.Run() START (timeout=120s)");
+                swRun.Start();
+                bool completed = false;
+                Exception? simEx = null;
+                try {
+                    var runTask = Task.Run(() => exp.Run());
+                    completed = runTask.Wait(TimeSpan.FromSeconds(120));
+                    if (!completed) throw new Exception("Simulation timed out after 120 seconds.");
+                } catch (Exception runEx) {
+                    logLines.Add($"[{DateTime.Now:HH:mm:ss}] WARN - exp.Run() falló: {runEx.InnerException?.Message ?? runEx.Message}");
+                    logLines.Add($"[{DateTime.Now:HH:mm:ss}] Intentando Fallback (Responses cleanup)...");
+                    
+                    var toRemove = new List<dynamic>();
+                    foreach (dynamic r in exp.Responses) {
+                        try {
+                            string rName = (string)r.Name;
+                            if (rName.EndsWith("_Average") || rName.EndsWith("_Maximum")) {
+                                toRemove.Add(r);
+                            }
+                        } catch {}
+                    }
+                    
+                    try {
+                        dynamic dynResps = exp.Responses;
+                        foreach (var r in toRemove) dynResps.Remove(r);
+                    } catch { }
+
+                    try {
+                        var fallbackTask = Task.Run(() => exp.Run());
+                        completed = fallbackTask.Wait(TimeSpan.FromSeconds(120));
+                    } catch (Exception fallbackEx) {
+                        simEx = fallbackEx;
+                    }
+                }
+                swRun.Stop();
+
+                if (simEx != null) {
+                    throw simEx;
+                }
+
+                if (!completed) {
+                    throw new Exception("Simulation timed out after 120 seconds. Model may require Desktop-only execution.");
+                }
+
+                logLines.Add($"[{DateTime.Now:HH:mm:ss}] exp.Run() DONE in {swRun.ElapsedMilliseconds}ms");
+
+                var results = new Dictionary<string, double>();
+                var getRespMeth = scenario.GetType().GetMethod("GetResponseValue", BindingFlags.Public | BindingFlags.Instance);
+
+                foreach (object objResp in exp.Responses) {
+                    try {
+                        IExperimentResponse typedResp = (IExperimentResponse)objResp;
+                        string rName = typedResp.Name;
+                        if (string.IsNullOrEmpty(rName)) rName = "Unknown_" + Guid.NewGuid().ToString().Substring(0,4);
+                        
+                        object[] args = new object[] { typedResp, 0.0 };
+                        bool success = false;
+                        
+                        try {
+                            if (getRespMeth != null) {
+                                success = (bool)getRespMeth.Invoke(scenario, args);
+                            } else {
+                                double v2 = 0;
+                                success = scenario.GetResponseValue(typedResp, ref v2);
+                                args[1] = v2;
+                            }
+                        } catch (Exception ex) {
+                            logLines.Add($"[{DateTime.Now:HH:mm:ss}] Excepción extrayendo {rName}: {ex.Message}");
+                        }
+
+                        if (success || args[1] != null) {
+                            double val = Convert.ToDouble(args[1]);
+                            if (double.IsNaN(val) || double.IsInfinity(val)) val = 0;
+                            
+                            string uiName = rName.Replace("Tally_", "")
+                                                 .Replace("_M2_PAX", "")
+                                                 .Replace("_M2_Pax", "")
+                                                 .Replace("_WaitTime", "_Wait")
+                                                 .Replace("AUTOM_IMMIGRATI", "AutoInmig")
+                                                 .Replace("MANUAL_Immigration", "ManInmig")
+                                                 .Replace("DOM_Baggage", "DomBag")
+                                                 .Replace("INT_Baggage", "IntBag")
+                                                 .Replace("BoardPass", "Board")
+                                                 .Replace("CHECKIN", "CheckIn");
+                                                 
+                            results[uiName] = val;
+                        }
+                    } catch (Exception extEx) {
+                        logLines.Add($"[{DateTime.Now:HH:mm:ss}] Error en loop de variable: {extEx.Message}");
+                    }
+                }
+
+                if (results.Count == 0) results["Status_Completed"] = 1.0;
+
+                return results;
+            };
+
+            var orchestratorUrl = app.Configuration["OrchestratorUrl"] ?? "http://localhost:8000";
+            var pollingEnabledStr = app.Configuration["PollingEnabled"] ?? "true";
+            bool pollingEnabled = bool.TryParse(pollingEnabledStr, out bool pe) && pe;
+
+            if (pollingEnabled) {
+                Console.WriteLine($"[POLLING] Starting background poller targeting Orchestrator at: {orchestratorUrl}");
+                var client = new System.Net.Http.HttpClient();
+                client.Timeout = Timeout.InfiniteTimeSpan;
+
+                _ = Task.Run(async () => {
+                    while (true) {
+                        try {
+                            var pollUrl = $"{orchestratorUrl.TrimEnd('/')}/api/agent/poll";
+                            var response = await client.GetAsync(pollUrl);
+                            if (response.IsSuccessStatusCode) {
+                                var responseBody = await response.Content.ReadAsStringAsync();
+                                using var doc = JsonDocument.Parse(responseBody);
+                                var root = doc.RootElement;
+                                
+                                if (root.TryGetProperty("task_id", out var taskIdProp) && taskIdProp.GetString() is string taskId) {
+                                    string modelId = root.TryGetProperty("model_id", out var modelIdProp) ? modelIdProp.GetString() ?? "" : "";
+                                    
+                                    if (string.IsNullOrEmpty(modelId)) {
+                                        modelId = "AIFAMODEL_ver010524_Prueba_Avanzado060326_VERD.spfx";
+                                    }
+
+                                    Console.WriteLine($"[POLLING] Received task {taskId} for model {modelId}");
+                                    
+                                    var parameters = new Dictionary<string, string>();
+                                    if (root.TryGetProperty("parameters", out var paramsProp) && paramsProp.ValueKind == JsonValueKind.Object) {
+                                        foreach (var prop in paramsProp.EnumerateObject()) {
+                                            parameters[prop.Name] = prop.Value.ToString();
+                                        }
+                                    }
+
+                                    var logLines = new List<string>();
+                                    logLines.Add($"[{DateTime.Now:HH:mm:ss}] INICIANDO SIMULACIÓN DESDE CLIENT POLLER...");
+                                    logLines.Add($"[{DateTime.Now:HH:mm:ss}] MODELO: {modelId}");
+                                    logLines.Add($"[{DateTime.Now:HH:mm:ss}] PARÁMETROS: {JsonSerializer.Serialize(parameters)}");
+
+                                    Dictionary<string, double>? results = null;
+                                    string? errorMsg = null;
+                                    
+                                    try {
+                                        results = runSimulationInline(modelId, parameters, logLines);
+                                        logLines.Add($"[{DateTime.Now:HH:mm:ss}] SIMULACIÓN COMPLETADA CON ÉXITO.");
+                                    } catch (Exception ex) {
+                                        errorMsg = ex.InnerException?.Message ?? ex.Message;
+                                        logLines.Add($"[{DateTime.Now:HH:mm:ss}] ERROR CRÍTICO EN SIMULACIÓN: {errorMsg}");
+                                        Console.WriteLine($"[POLLING ERROR] Task {taskId} failed: {errorMsg}");
+                                    }
+
+                                    var callbackUrl = $"{orchestratorUrl.TrimEnd('/')}/api/agent/callback";
+                                    var callbackPayload = new {
+                                        task_id = taskId,
+                                        status = errorMsg == null ? "COMPLETED" : "FAILED",
+                                        kpis = results,
+                                        error_msg = errorMsg,
+                                        log = string.Join("\n", logLines)
+                                    };
+
+                                    var jsonPayload = JsonSerializer.Serialize(callbackPayload);
+                                    var content = new System.Net.Http.StringContent(jsonPayload, System.Text.Encoding.UTF8, "application/json");
+                                    var callbackResponse = await client.PostAsync(callbackUrl, content);
+                                    if (callbackResponse.IsSuccessStatusCode) {
+                                        Console.WriteLine($"[POLLING] Successfully reported callback for task {taskId}");
+                                    } else {
+                                        Console.WriteLine($"[POLLING ERROR] Failed to report callback for task {taskId}. Status: {callbackResponse.StatusCode}");
+                                    }
+                                }
+                            }
+                        } catch (Exception) {
+                            // Silently continue on connection errors (e.g., orchestrator down)
+                        }
+                        await Task.Delay(3000);
+                    }
+                });
+            }
+
             app.MapGet("/api/model/{modelId}/variables", (string modelId) => {
                 try {
                     var project = GetOrLoadProject(modelId);
@@ -132,7 +362,6 @@ namespace SimioEdgeDaemon
                 } catch (Exception ex) { return Results.Problem(ex.Message); }
             });
 
-            // Endpoint de simulación intensiva en Edge
             app.MapPost("/api/model/{modelId}/simulate", async (string modelId, HttpContext context) => {
                 try {
                     using var reader = new StreamReader(context.Request.Body);
@@ -144,216 +373,8 @@ namespace SimioEdgeDaemon
                     }
                     var parameters = rawParams.ToDictionary(kvp => kvp.Key, kvp => kvp.Value?.ToString() ?? "");
 
-                    var project = GetOrLoadProject(modelId);
-                    var model = project.Models.FirstOrDefault(m => m.Experiments.Count > 0) ?? project.Models[0];
-                    var exp = model.Experiments[0];
-                    var scenario = exp.Scenarios[0];
-                    
-                    // ─── Ejecución DIRECTA en el hilo MTA del handler ─────────────────────────────
-                    Exception? simEx = null;
-                    bool completed = false;
-                    var swReset = System.Diagnostics.Stopwatch.StartNew();
-                    var swRun = new System.Diagnostics.Stopwatch();
-                    
-                    Console.WriteLine($"[DIAG] → exp.Reset() START (MTA inline)");
-
-                    try {
-                        exp.Reset();
-                        swReset.Stop();
-                        Console.WriteLine($"[DIAG] → exp.Reset() DONE in {swReset.ElapsedMilliseconds}ms");
-
-                        // Aplicar parámetros DESPUÉS del Reset
-                        foreach (var param in parameters) {
-                            if (param.Key.Equals("RunLength", StringComparison.OrdinalIgnoreCase)) {
-                                if (double.TryParse(param.Value, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out double rl)) {
-                                    try {
-                                        var modelRunSetupProp = model.GetType().GetProperty("RunSetup", BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
-                                        if (modelRunSetupProp != null) {
-                                            var runSetup = modelRunSetupProp.GetValue(model);
-                                            var stProp = runSetup.GetType().GetProperty("StartingTime", BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
-                                            var endProp = runSetup.GetType().GetProperty("EndingTime", BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
-                                            if (stProp != null && endProp != null) {
-                                                DateTime st = (DateTime)stProp.GetValue(runSetup);
-                                                endProp.SetValue(runSetup, st.AddHours(rl));
-                                                Console.WriteLine($"[DIAG] RunLength set to {rl}h via 'RunSetup.EndingTime'");
-                                            }
-                                        }
-                                        
-                                        var controlControl = exp.Controls.FirstOrDefault(c => c.Name.Equals("RunLength", StringComparison.OrdinalIgnoreCase));
-                                        if (controlControl != null) {
-                                            scenario.SetControlValue(controlControl, param.Value);
-                                            Console.WriteLine($"[DIAG] RunLength set via Scenario Controls");
-                                        }
-                                    } catch (Exception ex) {
-                                        Console.WriteLine($"[DIAG] ⚠️ Exception setting RunLength: {ex.Message}");
-                                    }
-                                }
-                                continue;
-                            }
-                            if (param.Key.Equals("Replications", StringComparison.OrdinalIgnoreCase)) {
-                                if (double.TryParse(param.Value, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out double repD)) {
-                                    scenario.ReplicationsRequired = Math.Max(1, (int)repD);
-                                    Console.WriteLine($"[DIAG] ReplicationsRequired = {scenario.ReplicationsRequired}");
-                                }
-                                continue;
-                            }
-                            
-                            var control = exp.Controls.FirstOrDefault(c => c.Name.Equals(param.Key, StringComparison.OrdinalIgnoreCase));
-                            if (control != null) {
-                                string safeValue = string.IsNullOrWhiteSpace(param.Value) ? "0" : param.Value;
-                                scenario.SetControlValue(control, safeValue);
-                                Console.WriteLine($"[DIAG PARAM] Escrito en {param.Key} = '{safeValue}'");
-                            } else {
-                                Console.WriteLine($"[DIAG PARAM WARN] Control no encontrado para: {param.Key} = '{param.Value}'");
-                            }
-                        }
-                        Console.WriteLine($"[DIAG] → Parameters applied | Replications={scenario.ReplicationsRequired}");
-
-                        // ─── DUMP: Propiedades del EXPERIMENT ─────────────────────────────────────
-                        var expProps = exp.GetType().GetProperties(
-                            BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
-                        Console.WriteLine($"[DIAG] Experiment type: {exp.GetType().FullName} | Props: {expProps.Length}");
-                        foreach (var p in expProps) {
-                            try {
-                                var val = p.GetValue(exp);
-                                if (val is TimeSpan || val is double || val is int || val is Enum ||
-                                    (val is string s && !string.IsNullOrWhiteSpace(s)))
-                                    Console.WriteLine($"[DIAG EXP] {p.Name} ({p.PropertyType.Name}) = {val}");
-                            } catch { }
-                        }
-
-                        // ─── DUMP: Propiedades del SCENARIO ──────────────────────────────────────
-                        var scenProps = scenario.GetType().GetProperties(
-                            BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
-                        Console.WriteLine($"[DIAG] Scenario type: {scenario.GetType().FullName} | Props: {scenProps.Length}");
-                        foreach (var p in scenProps) {
-                            try {
-                                var val = p.GetValue(scenario);
-                                if (val is TimeSpan || val is double || val is int || val is Enum ||
-                                    (val is string s && !string.IsNullOrWhiteSpace(s)))
-                                    Console.WriteLine($"[DIAG SCEN] {p.Name} ({p.PropertyType.Name}) = {val}");
-                            } catch { }
-                        }
-                        // ─────────────────────────────────────────────────────────────────────────────
-
-                    // Ejecución con timeout de seguridad (120s)
-                    Console.WriteLine($"[DIAG] → exp.Run() START (inline MTA, timeout=120s)");
-                    swRun.Start();
-                    
-                    completed = false;
-                    try {
-                        var runTask = Task.Run(() => exp.Run());
-                        completed = runTask.Wait(TimeSpan.FromSeconds(120));
-                        if (!completed) throw new Exception("Simulation timed out after 120 seconds.");
-                    } catch (Exception runEx) {
-                        Console.WriteLine($"[DIAG] ⚠️ exp.Run() falló en el primer intento: {runEx.InnerException?.Message ?? runEx.Message}");
-                        Console.WriteLine($"[DIAG] Purificando Responses inyectadas e intentando Fallback (Run puro)...");
-                        
-                        var toRemove = new List<dynamic>();
-                        foreach (dynamic r in exp.Responses) {
-                            try {
-                                string rName = (string)r.Name;
-                                if (rName.EndsWith("_Average") || rName.EndsWith("_Maximum")) {
-                                    toRemove.Add(r);
-                                }
-                            } catch {}
-                        }
-                        
-                        try {
-                            dynamic dynResps = exp.Responses;
-                            foreach (var r in toRemove) dynResps.Remove(r);
-                        } catch { }
-
-                        try {
-                            Console.WriteLine($"[DIAG] → exp.Run() FALLBACK START");
-                            var fallbackTask = Task.Run(() => exp.Run());
-                            completed = fallbackTask.Wait(TimeSpan.FromSeconds(120));
-                        } catch (Exception fallbackEx) {
-                            simEx = fallbackEx; // Si falla de nuevo, el modelo está genuinamente roto
-                        }
-                    }
-                    swRun.Stop();
-                    } catch (Exception ex) { simEx = ex; }
-
-                    if (simEx != null) {
-                        Console.WriteLine($"[DIAG] 💥 EXCEPTION FATAL en exp.Run(): {simEx.Message}");
-                        if (simEx.InnerException != null) Console.WriteLine($"[DIAG] Inner: {simEx.InnerException.Message}");
-                        return Results.Problem(simEx.InnerException?.Message ?? simEx.Message);
-                    }
-                    
-                    if (completed) {
-                        Console.WriteLine($"[DIAG] → exp.Run() DONE in {swRun.ElapsedMilliseconds}ms | Completed={scenario.ReplicationsCompleted}");
-                    } else if (simEx == null) {
-                        Console.WriteLine($"[DIAG] ❌ exp.Run() TIMEOUT after 120s. Simulation hung.");
-                        return Results.Problem("Simulation timed out after 120 seconds. Model may require Desktop-only execution.");
-                    }
-
-                    // Extracción de KPIs post-simulación
-                    var results = new Dictionary<string, double>();
-
-                    // ─── FASE 1 RESTAURADA: EXTRACCIÓN DIRECTA DESDE RESPONSES (0ms) ───
-                    // Gracias al Auto-Guardado previo, exp.Run() ya no borra las Responses.
-                    try {
-                        int processedCount = 0;
-                        var getRespMeth = scenario.GetType().GetMethod("GetResponseValue", BindingFlags.Public | BindingFlags.Instance);
-
-                        // Extraer valores nativos
-                        foreach (object objResp in exp.Responses) {
-                            try {
-                                IExperimentResponse typedResp = (IExperimentResponse)objResp;
-                                string rName = typedResp.Name;
-                                if (string.IsNullOrEmpty(rName)) rName = "Unknown_" + Guid.NewGuid().ToString().Substring(0,4);
-                                
-                                object[] args = new object[] { typedResp, 0.0 };
-                                bool success = false;
-                                
-                                try {
-                                    if (getRespMeth != null) {
-                                        success = (bool)getRespMeth.Invoke(scenario, args);
-                                    } else {
-                                        double v2 = 0;
-                                        success = scenario.GetResponseValue(typedResp, ref v2);
-                                        args[1] = v2;
-                                    }
-                                } catch (Exception ex) { 
-                                    Console.WriteLine($"[DIAG RESP] Excepción extrayendo {rName}: {ex.Message}");
-                                }
-
-                                Console.WriteLine($"[DIAG RESP] {rName} -> Success={success}, Value={args[1]}");
-
-                                // Fallback: Aún si success es false (posible NaN por 0 observaciones), extraemos si es un número
-                                if (success || args[1] != null) {
-                                    double val = Convert.ToDouble(args[1]);
-                                    if (double.IsNaN(val) || double.IsInfinity(val)) val = 0;
-                                    
-                                    string uiName = rName.Replace("Tally_", "")
-                                                         .Replace("_M2_PAX", "")
-                                                         .Replace("_M2_Pax", "")
-                                                         .Replace("_WaitTime", "_Wait")
-                                                         .Replace("AUTOM_IMMIGRATI", "AutoInmig")
-                                                         .Replace("MANUAL_Immigration", "ManInmig")
-                                                         .Replace("DOM_Baggage", "DomBag")
-                                                         .Replace("INT_Baggage", "IntBag")
-                                                         .Replace("BoardPass", "Board")
-                                                         .Replace("CHECKIN", "CheckIn");
-                                                         
-                                    results[uiName] = val;
-                                }
-                                processedCount++;
-                            } catch (Exception extEx) {
-                                Console.WriteLine($"[DIAG ERROR] Error en loop de variable: {extEx.Message}");
-                            }
-                        }
-
-                        Console.WriteLine($"[DIAG] Total Responses Procesadas: {processedCount}, Extraídas exitosamente: {results.Count}");
-
-                        if (results.Count == 0) results["Status_Completed"] = 1.0;
-                    } catch (Exception extEx) {
-                        Console.WriteLine($"[DIAG ERROR] Fallo en extracción final de Responses: {extEx.Message}");
-                    }
-
-                    if (results.Count == 0)
-                        results["Status_Completed"] = 1.0;
+                    var logLines = new List<string>();
+                    var results = runSimulationInline(modelId, parameters, logLines);
 
                     return Results.Ok(new { 
                         status = "COMPLETED", 

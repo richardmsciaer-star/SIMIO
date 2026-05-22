@@ -1,46 +1,6 @@
 {
     "models": [
         {
-            "id": "AIFAMODEL_ver010524_Prueba.spfx",
-            "name": "AIFAMODEL_ver010524_Prueba.spfx",
-            "description": "Modelo detectado.",
-            "groups": [
-                {
-                    "title": "Variables del Modelo",
-                    "fields": [
-                        {
-                            "key": "RunLength",
-                            "label": "Duración Simulación (Horas)",
-                            "type": "number",
-                            "default": 10,
-                            "description": "ADVERTENCIA: Mayor duración incrementa el tiempo."
-                        },
-                        {
-                            "key": "Replications",
-                            "label": "Número de Réplicas",
-                            "type": "number",
-                            "default": 1,
-                            "description": "ADVERTENCIA: Multiplica linealmente el tiempo total."
-                        },
-                        {
-                            "key": "FACTOR_CREC_DEmand",
-                            "label": "FACTOR_CREC_DEmand",
-                            "type": "number",
-                            "default": "1",
-                            "description": ""
-                        },
-                        {
-                            "key": "Perce_CheckInManual",
-                            "label": "Perce_CheckInManual",
-                            "type": "number",
-                            "default": "0.0",
-                            "description": ""
-                        }
-                    ]
-                }
-            ]
-        },
-        {
             "id": "AIFAMODEL_ver010524_Prueba_Avanzado060326_VERD.spfx",
             "name": "AIFAMODEL_ver010524_Prueba_Avanzado060326_VERD.spfx",
             "description": "Modelo alojado en Edge Node RAM.",
