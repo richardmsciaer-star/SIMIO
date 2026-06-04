@@ -660,14 +660,14 @@ const resources = {
       "dt_paginate_next": "Siguiente",
       "dt_paginate_prev": "Anterior",
       "dash_main_title": "RESULTADOS DE ESTUDIO – COMPARACIÓN DE ESCENARIOS",
-      "dash_chart1": "TIEMPO DE ESPERA – LLEGADAS",
-      "dash_chart2": "DENSIDAD ESPACIAL – LLEGADAS",
-      "dash_chart3": "TIEMPO DE ESPERA – SALIDAS",
-      "dash_chart4": "DENSIDAD ESPACIAL – SALIDAS",
+      "dash_chart1": "TIEMPO DE ESPERA (Min) – LLEGADAS",
+      "dash_chart2": "DENSIDAD ESPACIAL (m²/Pax) – LLEGADAS",
+      "dash_chart3": "TIEMPO DE ESPERA (Min) – SALIDAS",
+      "dash_chart4": "DENSIDAD ESPACIAL (m²/Pax) – SALIDAS",
       "dash_footer1": "<strong>Tiempo de Espera:</strong> Muestra promedios (Azul) vs picos máximos (Naranja). Altos valores en picos indican cuellos de botella en hora punta.",
       "dash_footer2": "<strong>Capacidad y Densidad:</strong> Monitorear límites. Los promedios deben estar bajo el límite inferior (Target) para un flujo óptimo.",
-      "leg_target": "LoS inferior (Target)",
-      "leg_limit": "LoS superior (Limit)",
+      "leg_target": "LoS inferior (Target) [Ref: IATA ADRM Vol.12]",
+      "leg_limit": "LoS superior (Limit) [Ref: IATA ADRM Vol.12]",
       "leg_avg": "Tiempo Promedio",
       "leg_max": "Tiempo Máximo (Pico)",
       "kpi": {
@@ -706,7 +706,10 @@ const resources = {
           "CheckIn": "Check-in Dom.",
           "CheckIn_Wait": "Espera Check-in",
           "DOM_GATES": "Dep Hall (Dom.)",
-          "SEC_DOM_Wait": "Espera Seg. Dom."
+          "SEC_DOM_Wait": "Espera Seg. Dom.",
+          "TIME_TO_GATE": "Tiempo a Puerta",
+          "THROUGHPUT": "Throughput (Rendimiento)",
+          "SLACK_TIME_AFTER_SECURITY": "Tiempo de Holgura (Post-Seguridad)"
       },
       "variables": {
         "RunLength": "Duración Simulación (Horas)",
@@ -784,14 +787,14 @@ const resources = {
       "dt_paginate_next": "Next",
       "dt_paginate_prev": "Previous",
       "dash_main_title": "SIMULATION STUDY RESULTS – SCENARIOS COMPARISON",
-      "dash_chart1": "WAITING TIME – ARRIVALS",
-      "dash_chart2": "SPATIAL DENSITY – ARRIVALS",
-      "dash_chart3": "WAITING TIME – DEPARTURES",
-      "dash_chart4": "SPATIAL DENSITY – DEPARTURES",
+      "dash_chart1": "WAITING TIME (Min) – ARRIVALS",
+      "dash_chart2": "SPATIAL DENSITY (m²/Pax) – ARRIVALS",
+      "dash_chart3": "WAITING TIME (Min) – DEPARTURES",
+      "dash_chart4": "SPATIAL DENSITY (m²/Pax) – DEPARTURES",
       "dash_footer1": "<strong>Waiting Time:</strong> Shows average times (Blue) vs maximum peaks (Orange). High values in peaks indicate potential bottlenecks during rush hours.",
       "dash_footer2": "<strong>Capacity & Density:</strong> Keep an eye on limits. Averages should be below the inferior limit (Target) for optimal passenger flow.",
-      "leg_target": "LoS inferior (Target)",
-      "leg_limit": "LoS superior (Limit)",
+      "leg_target": "LoS inferior (Target) [Ref: IATA ADRM Vol.12]",
+      "leg_limit": "LoS superior (Limit) [Ref: IATA ADRM Vol.12]",
       "leg_avg": "Average Time",
       "leg_max": "Maximum Time (Peak)",
       "kpi": {
@@ -830,7 +833,10 @@ const resources = {
           "CheckIn": "Check-in Dom.",
           "CheckIn_Wait": "Wait Check-in",
           "DOM_GATES": "Dep Hall (Dom.)",
-          "SEC_DOM_Wait": "Wait Sec. Dom."
+          "SEC_DOM_Wait": "Wait Sec. Dom.",
+          "TIME_TO_GATE": "Time to Gate",
+          "THROUGHPUT": "Throughput",
+          "SLACK_TIME_AFTER_SECURITY": "Slack Time (Post-Security)"
       },
       "variables": {
         "RunLength": "Simulation Length (Hours)",
@@ -1060,7 +1066,7 @@ $(document).ready(function() {
     Chart.defaults.color = '#a0aec0';
     Chart.defaults.font.family = "'Inter', sans-serif";
 
-    function createMixedChart(canvasId, labels, avgData, maxData) {
+    function createMixedChart(canvasId, labels, avgData, maxData, yAxisLabel) {
         if (!document.getElementById(canvasId)) return null;
         
         // Target & Limit lines (Dummy calc for visual)
@@ -1122,7 +1128,7 @@ $(document).ready(function() {
                     y: { 
                         beginAtZero: true, 
                         grid: { color: 'rgba(255,255,255,0.05)' },
-                        title: { display: true, text: 'Time / Value', color: '#a0aec0' }
+                        title: { display: true, text: yAxisLabel, color: '#a0aec0' }
                     },
                     x: { 
                         grid: { display: false },
@@ -1133,10 +1139,13 @@ $(document).ready(function() {
         });
     }
 
-    window.arrWaitChartInstance = createMixedChart('arrWaitChart', getTranslatedLabels(arrWaitData.labels), arrWaitData.avgValues, arrWaitData.maxValues);
-    window.arrDensChartInstance = createMixedChart('arrDensChart', getTranslatedLabels(arrDensData.labels), arrDensData.avgValues, arrDensData.maxValues);
-    window.depWaitChartInstance = createMixedChart('depWaitChart', getTranslatedLabels(depWaitData.labels), depWaitData.avgValues, depWaitData.maxValues);
-    window.depDensChartInstance = createMixedChart('depDensChart', getTranslatedLabels(depDensData.labels), depDensData.avgValues, depDensData.maxValues);
+    const timeLabel = currentLang === 'es' ? 'Tiempo (Min)' : 'Time (Min)';
+    const densLabel = currentLang === 'es' ? 'Densidad (m²/Pax)' : 'Density (m²/Pax)';
+
+    window.arrWaitChartInstance = createMixedChart('arrWaitChart', getTranslatedLabels(arrWaitData.labels), arrWaitData.avgValues, arrWaitData.maxValues, timeLabel);
+    window.arrDensChartInstance = createMixedChart('arrDensChart', getTranslatedLabels(arrDensData.labels), arrDensData.avgValues, arrDensData.maxValues, densLabel);
+    window.depWaitChartInstance = createMixedChart('depWaitChart', getTranslatedLabels(depWaitData.labels), depWaitData.avgValues, depWaitData.maxValues, timeLabel);
+    window.depDensChartInstance = createMixedChart('depDensChart', getTranslatedLabels(depDensData.labels), depDensData.avgValues, depDensData.maxValues, densLabel);
     {% endif %}
 
 const STAGES_ORDER = [

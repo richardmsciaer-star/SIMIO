@@ -24,3 +24,6 @@ py_out_utf8.txt
 [Oo]bj/
 SimioEdgeDaemon/bin/
 SimioEdgeDaemon/obj/
+
+.vercel
+.env*.local

@@ -3,7 +3,7 @@
         {
             "id": "AIFAMODEL_ver010524_Prueba_Avanzado060326_VERD.spfx",
             "name": "AIFAMODEL_ver010524_Prueba_Avanzado060326_VERD.spfx",
-            "description": "Modelo alojado en Edge Node RAM.",
+            "description": "",
             "groups": [
                 {
                     "title": "Variables del Modelo",
@@ -26,35 +26,35 @@
                             "key": "PassengerSpeeds",
                             "label": "Velocidad Pasajeros                   ",
                             "type": "number",
-                            "default": "random.triangular(0.6,0.8,1.1)",
+                            "default": "1.0",
                             "description": ""
                         },
                         {
                             "key": "DeparturesON",
                             "label": "Habilitar Salidas (Dep)               ",
                             "type": "checkbox",
-                            "default": false,
+                            "default": true,
                             "description": ""
                         },
                         {
                             "key": "GROWTH_FACTOR_DEM_DEP",
                             "label": "Crecimiento (Salidas)                 ",
                             "type": "number",
-                            "default": "4",
+                            "default": "4.0",
                             "description": ""
                         },
                         {
                             "key": "DwellTImeDepHALLCompanion",
                             "label": "Espera Acomp. (Salidas)               ",
                             "type": "number",
-                            "default": "15",
+                            "default": "15.0",
                             "description": ""
                         },
                         {
                             "key": "DwellTImeDepartureHallPAX",
                             "label": "Espera Pax (Salidas)                  ",
                             "type": "number",
-                            "default": "15",
+                            "default": "15.0",
                             "description": ""
                         },
                         {
@@ -68,49 +68,49 @@
                             "key": "CheckInIslandsOpened",
                             "label": "Islas Check-In Abiertas               ",
                             "type": "number",
-                            "default": "1",
+                            "default": "1.0",
                             "description": ""
                         },
                         {
                             "key": "CheckIn_ProcessTime",
                             "label": "Tiempo Proceso Check-In               ",
                             "type": "number",
-                            "default": "random.Triangular(60,90,120)",
+                            "default": "1.0",
                             "description": ""
                         },
                         {
                             "key": "NumberPersoneelCheckIn",
                             "label": "Personal Check-In                     ",
                             "type": "number",
-                            "default": "1",
+                            "default": "1.0",
                             "description": ""
                         },
                         {
                             "key": "NumberPersoneelBPCOntrol",
                             "label": "Personal Control BP                   ",
                             "type": "number",
-                            "default": "2",
+                            "default": "2.0",
                             "description": ""
                         },
                         {
                             "key": "ProcessTimeBoardiPAssControl",
                             "label": "Tiempo Control BP                     ",
                             "type": "number",
-                            "default": "random.triangular(3,7,12)",
+                            "default": "1.0",
                             "description": ""
                         },
                         {
                             "key": "SECLinesOpened",
                             "label": "Líneas Seguridad Abiertas             ",
                             "type": "number",
-                            "default": "1",
+                            "default": "1.0",
                             "description": ""
                         },
                         {
                             "key": "WaitCapacityBodyScan",
                             "label": "Capacidad Espera BodyScan             ",
                             "type": "number",
-                            "default": "2",
+                            "default": "2.0",
                             "description": ""
                         },
                         {
@@ -124,63 +124,63 @@
                             "key": "DivestCapacity",
                             "label": "Capacidad Bandejas (Seguridad)        ",
                             "type": "number",
-                            "default": "3",
+                            "default": "3.0",
                             "description": ""
                         },
                         {
                             "key": "DivestTIme",
                             "label": "Tiempo Despojo (Seguridad)            ",
                             "type": "number",
-                            "default": "random.triangular(15,20,60)",
+                            "default": "1.0",
                             "description": ""
                         },
                         {
                             "key": "ArrivalsDOM_ON",
                             "label": "Habilitar Llegadas (Dom)              ",
                             "type": "checkbox",
-                            "default": false,
+                            "default": true,
                             "description": ""
                         },
                         {
                             "key": "ArrivalsINT_ON",
                             "label": "Habilitar Llegadas (Int)              ",
                             "type": "checkbox",
-                            "default": false,
+                            "default": true,
                             "description": ""
                         },
                         {
                             "key": "GROWTH_FACTOR_DEM_ARR",
                             "label": "Crecimiento (Llegadas)                ",
                             "type": "number",
-                            "default": "4",
+                            "default": "4.0",
                             "description": ""
                         },
                         {
                             "key": "DwellTImeARRIVALHALLCompanion",
                             "label": "Espera Acomp. (Llegadas)              ",
                             "type": "number",
-                            "default": "15",
+                            "default": "15.0",
                             "description": ""
                         },
                         {
                             "key": "DwellTImeArrivalHallPAX",
                             "label": "Espera Pax (Llegadas)                 ",
                             "type": "number",
-                            "default": "5",
+                            "default": "5.0",
                             "description": ""
                         },
                         {
                             "key": "Numbe_ArrManualPssptLInesOpen",
                             "label": "Líneas Pasaporte Manual               ",
                             "type": "number",
-                            "default": "1",
+                            "default": "1.0",
                             "description": ""
                         },
                         {
                             "key": "Number_ARR_AUTOPssptLinesOPEN",
                             "label": "Líneas Pasaporte Auto                 ",
                             "type": "number",
-                            "default": "1",
+                            "default": "1.0",
                             "description": ""
                         },
                         {
@@ -194,21 +194,21 @@
                             "key": "NumberINTBeltOpen",
                             "label": "Cintas Equipaje (Int)                 ",
                             "type": "number",
-                            "default": "4",
+                            "default": "4.0",
                             "description": ""
                         },
                         {
                             "key": "NumberDOMBeltOpen",
                             "label": "Cintas Equipaje (Dom)                 ",
                             "type": "number",
-                            "default": "3",
+                            "default": "3.0",
                             "description": ""
                         },
                         {
                             "key": "No_DouaneLineOpen",
                             "label": "Líneas Aduana Abiertas                ",
                             "type": "number",
-                            "default": "0",
+                            "default": "1.0",
                             "description": ""
                         },
                         {
@@ -222,7 +222,7 @@
                             "key": "DivestDouaneTime",
                             "label": "Tiempo Inspección Aduana              ",
                             "type": "number",
-                            "default": "30",
+                            "default": "30.0",
                             "description": ""
                         },
                         {
@@ -236,14 +236,14 @@
                             "key": "LengthCollectionData",
                             "label": "Duración Recolección (Hr)             ",
                             "type": "number",
-                            "default": "4",
+                            "default": "4.0",
                             "description": ""
                         },
                         {
                             "key": "FrecuencyofCollection",
                             "label": "Frecuencia Muestreo (Seg)             ",
                             "type": "number",
-                            "default": "60",
+                            "default": "60.0",
                             "description": ""
                         }
                     ]

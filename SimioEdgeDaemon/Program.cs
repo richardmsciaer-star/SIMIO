@@ -25,21 +25,26 @@ namespace SimioEdgeDaemon
                 return File.Exists(p) ? ctx.LoadFromAssemblyPath(p) : null;
             };
             string originalDir = Directory.GetCurrentDirectory();
-            Environment.CurrentDirectory = simioDir;
-
+            
             RunServer(args, simioDir, originalDir);
         }
 
         static void RunServer(string[] args, string simioDir, string originalDir)
         {
-            var builder = WebApplication.CreateBuilder(args);
+            var builder = WebApplication.CreateBuilder(new WebApplicationOptions
+            {
+                Args = args,
+                ContentRootPath = originalDir
+            });
             var app = builder.Build();
+
+            Environment.CurrentDirectory = simioDir;
 
             var simioAsm = AssemblyLoadContext.Default.LoadFromAssemblyPath(Path.Combine(simioDir, "SimioDLL.dll"));
             var factory = simioAsm.GetTypes().First(t => t.Name == "SimioProjectFactory");
             var loadMeth = factory.GetMethod("LoadProject", new[] { typeof(string), typeof(string[]).MakeByRefType() })!;
 
-            string modelsDir = builder.Configuration["ModelsDir"] ?? Path.Combine(originalDir, "..", "Models");
+            string modelsDir = Path.GetFullPath(Path.Combine(originalDir, builder.Configuration["ModelsDir"] ?? Path.Combine(originalDir, "..", "Models")));
             var loadedProjects = new Dictionary<string, ISimioProject>(StringComparer.OrdinalIgnoreCase);
 
             ISimioProject GetOrLoadProject(string modelId) {
@@ -354,7 +359,7 @@ namespace SimioEdgeDaemon
                             new {
                                 id = modelId,
                                 name = modelId,
-                                description = "Modelo alojado en Edge Node RAM.",
+                                description = "",
                                 groups = new[] { new { title = "Variables del Modelo", fields = vars } }
                             }
                         }
