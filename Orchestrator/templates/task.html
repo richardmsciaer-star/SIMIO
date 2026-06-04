@@ -1348,9 +1348,24 @@ updatePipeline({{ (task.stage or "QUEUED")|tojson }}, {{ task.status|tojson }});
 {% if task.status in ['PENDING', 'RUNNING'] %}
 // Poll every 3 seconds
 let lastLog = '';
-setInterval(async () => {
+const pollInterval = setInterval(async () => {
     try {
         const resp = await fetch('/api/task/{{ task.id }}/status');
+        if (resp.status === 404) {
+            const badge = document.getElementById('statusBadge');
+            badge.textContent = 'EXPIRADA';
+            badge.className = 'status-big status-FAILED';
+            document.getElementById('stageText').textContent = 'La sesión expiró o la tarea fue borrada.';
+            
+            const queueBanner = document.getElementById('queueBanner');
+            if (queueBanner) queueBanner.style.display = 'none';
+            
+            clearInterval(pollInterval);
+            return;
+        }
+        
+        if (!resp.ok) return;
+        
         const data = await resp.json();
 
         // Update status badge
