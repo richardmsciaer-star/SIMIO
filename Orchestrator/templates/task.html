@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Tarea {{ task.id[:8] }} | Simio Agent Pro</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/i18next@23.10.1/dist/umd/i18next.min.js"></script>
     <link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/1.13.6/css/jquery.dataTables.min.css">
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -25,6 +26,22 @@
         .header a { color: #63b3ed; text-decoration: none; font-weight: 600; font-size: 15px; }
         .header a:hover { text-decoration: underline; }
         .header h1 { font-size: 20px; font-weight: 700; color: #c0cad8; }
+        .header-actions { margin-left: auto; display: flex; gap: 8px; align-items: center; }
+        .flag-btn { 
+            background: rgba(99, 179, 237, 0.1); 
+            border: 1px solid rgba(99, 179, 237, 0.3); 
+            padding: 6px 10px;
+            border-radius: 6px;
+            cursor: pointer; 
+            transition: all 0.2s;
+            opacity: 0.5;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .flag-btn:hover { background: rgba(99, 179, 237, 0.2); opacity: 0.8; }
+        .flag-btn.active { opacity: 1; background: rgba(99, 179, 237, 0.25); border-color: #63b3ed; box-shadow: 0 0 8px rgba(99, 179, 237, 0.4); }
+        .flag-btn img { width: 22px; height: 15px; border-radius: 2px; object-fit: cover; }
 
         .container { max-width: 1000px; margin: 24px auto; padding: 0 24px; }
 
@@ -215,29 +232,118 @@
         .dataTables_wrapper .dataTables_paginate .paginate_button { color: #63b3ed !important; }
         .dataTables_wrapper .dataTables_paginate .paginate_button.current { background: #2d3748 !important; color: #fff !important; border: none; }
         
-        /* Dashboard Charts */
-        .charts-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
-            gap: 24px;
-            margin-top: 24px;
-            margin-bottom: 32px;
-        }
-        .chart-card {
+        /* Dashboard Tablero.jpeg Style (Adapted to Dark Theme) */
+        .dashboard-wrapper {
             background: rgba(13, 19, 33, 0.4);
             border: 1px solid rgba(99, 179, 237, 0.1);
             border-radius: 12px;
             padding: 16px;
+            margin-top: 24px;
+            color: #e0e6f0;
+            font-family: 'Inter', sans-serif;
             box-shadow: inset 0 0 20px rgba(0,0,0,0.5);
         }
-        .chart-title {
-            font-size: 13px;
-            color: #8899aa;
+        .dashboard-header {
+            background: linear-gradient(135deg, #113463 0%, #0a2e5c 100%);
+            color: #ffffff;
+            text-align: center;
+            padding: 12px 0;
+            border-radius: 6px;
             margin-bottom: 12px;
-            text-transform: uppercase;
-            letter-spacing: 0.05em;
+            border: 1px solid rgba(99, 179, 237, 0.2);
+        }
+        .dashboard-header h1 {
+            margin: 0;
+            font-size: 22px;
+            font-weight: 700;
+            letter-spacing: 1px;
+        }
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            margin-bottom: 12px;
+        }
+        @media (max-width: 900px) {
+            .dashboard-grid { grid-template-columns: 1fr; }
+        }
+        .dash-chart-card {
+            background: rgba(10, 14, 26, 0.8);
+            border: 1px solid rgba(99, 179, 237, 0.15);
+            border-radius: 6px;
+            overflow: hidden;
+        }
+        .dash-chart-title {
+            background: rgba(17, 52, 99, 0.6);
+            border-bottom: 1px solid rgba(99, 179, 237, 0.1);
+            color: #ffffff;
+            text-align: center;
+            padding: 8px;
+            font-size: 14px;
             font-weight: 600;
         }
+        .chart-container {
+            padding: 16px;
+            height: 300px;
+            background: transparent;
+        }
+        .dashboard-footer {
+            background: rgba(10, 14, 26, 0.5);
+            border: 1px solid rgba(99, 179, 237, 0.1);
+            border-radius: 6px;
+            padding: 16px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 16px;
+        }
+        .footer-box {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            flex: 1;
+            min-width: 250px;
+        }
+        .footer-icon {
+            background: rgba(17, 52, 99, 0.8);
+            border: 1px solid rgba(99, 179, 237, 0.2);
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+        .footer-text {
+            font-size: 11px;
+            color: #a0aec0;
+            line-height: 1.4;
+        }
+        .footer-legend {
+            background: transparent;
+            border: none;
+            padding: 12px;
+            border-radius: 6px;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            font-size: 11px;
+            color: #a0aec0;
+            min-width: 180px;
+        }
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .line-red { width: 24px; height: 2px; background: #ef4444; position: relative; }
+        .line-red::after { content: ''; position: absolute; left: 10px; top: -3px; width: 6px; height: 6px; background: #ef4444; border-radius: 50%; }
+        .line-black { width: 24px; height: 2px; background: #94a3b8; position: relative; }
+        .line-black::after { content: ''; position: absolute; left: 10px; top: -3px; width: 6px; height: 6px; background: #94a3b8; border-radius: 50%; }
+        .box-blue { width: 14px; height: 14px; background: #3b82f6; }
+        .box-orange { width: 14px; height: 14px; background: #f59e0b; }
 
         /* PDF Export Styling overrides */
         .pdf-mode {
@@ -277,119 +383,86 @@
         .pdf-mode .info-item .value {
             color: #2b6cb0 !important;
         }
-        .pdf-mode .charts-grid {
-            display: flex !important;
-            flex-direction: row !important;
-            gap: 24px !important;
-            margin-top: 24px !important;
-            margin-bottom: 32px !important;
-            page-break-inside: avoid !important;
-            break-inside: avoid !important;
-        }
-        .pdf-mode .chart-card {
-            background: #ffffff !important;
-            border: 1px solid #e2e8f0 !important;
-            box-shadow: none !important;
-            flex: 1 !important;
-            width: 48% !important;
-        }
-        .pdf-mode .chart-title {
-            color: #4a5568 !important;
-        }
-        .pdf-mode .params-grid {
-            display: flex !important;
-            flex-wrap: wrap !important;
-            gap: 8px !important;
-        }
-        .pdf-mode .param-item {
-            background: #f7fafc !important;
-            border: 1px solid #edf2f7 !important;
-            flex: 1 1 200px !important;
-        }
-        .pdf-mode .param-item .key {
-            color: #805ad5 !important;
-        }
-        .pdf-mode .param-item .val {
-            color: #2d3748 !important;
-        }
-        .pdf-mode table.dataTable {
-            border: 1px solid #cbd5e0 !important;
-            width: 100% !important;
-        }
-        .pdf-mode table.dataTable thead th {
-            background: #edf2f7 !important;
-            color: #2b6cb0 !important;
-            border-bottom: 2px solid #cbd5e0 !important;
-        }
-        .pdf-mode table.dataTable tbody td {
-            background: #ffffff !important;
-            color: #2d3748 !important;
-            border-bottom: 1px solid #e2e8f0 !important;
-        }
-        .pdf-mode .downloads,
-        .pdf-mode .dataTables_length,
-        .pdf-mode .dataTables_filter,
-        .pdf-mode .dataTables_info,
-        .pdf-mode .dataTables_paginate {
-            display: none !important;
-        }
+
+        /* Enforce exact A4 landscape aspect ratio and size for the dashboard export */
+
     </style>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 </head>
 <body>
 
 <div class="header">
-    <a href="/">← Volver</a>
-    <h1>Tarea {{ task.id[:8] }}…</h1>
+    <a href="/">← <span data-i18n="back">Volver</span></a>
+    <h1><span data-i18n="task">Tarea</span> {{ task.id[:8] }}…</h1>
+    <div class="header-actions">
+        <button class="flag-btn active" onclick="setLanguage('es')" id="flag-es" title="Español">
+            <img src="https://flagcdn.com/w40/es.png" alt="ES">
+        </button>
+        <button class="flag-btn" onclick="setLanguage('en')" id="flag-en" title="English">
+            <img src="https://flagcdn.com/w40/gb.png" alt="EN">
+        </button>
+    </div>
 </div>
 
 <div class="container">
 
     <!-- Status + Pipeline -->
     <div class="card">
-        <h2>Estado de la Simulación</h2>
-        <span class="status-big status-{{ task.status }}" id="statusBadge">{{ task.status }}</span>
-        <span id="stageText" style="margin-left:12px; font-size:13px; color:#8899aa;">{{ task.stage or '' }}</span>
-        <span id="queueBadge" style="margin-left:12px; font-size:13px; color:#f59e0b; font-weight:600; display:none;"></span>
+        <h2 data-i18n="sim_status">Estado de la Simulación</h2>
+        <span class="status-big status-{{ task.status }}" id="statusBadge" data-i18n="status_{{ task.status }}">{{ task.status }}</span>
+        <span id="stageText" style="margin-left:12px; font-size:13px; color:#8899aa;" data-i18n="stage_{{ task.stage }}">{{ task.stage or '' }}</span>
+
+        {% if task.status in ['PENDING', 'RUNNING'] %}
+        <div style="margin-top: 12px;">
+            <button onclick="cancelCurrentTask()" style="background: rgba(239, 68, 68, 0.15); color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.3); padding: 8px 16px; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; transition: background 0.2s;" data-i18n="btn_cancel">🛑 Cancelar Simulación</button>
+        </div>
+        {% endif %}
 
         {% if task.error_msg %}
         <div class="error-msg">{{ task.error_msg }}</div>
         {% endif %}
 
+        <!-- Queue Banner -->
+        <div id="queueBanner" style="display:none; background: rgba(245, 158, 11, 0.1); border-left: 4px solid #f59e0b; padding: 15px; margin-top: 15px; border-radius: 0 4px 4px 0;">
+            <div style="color: #fbd38d; font-size: 16px; font-weight: bold; margin-bottom: 5px;">⏳ Estás en cola de espera (Posición #<span id="queuePosText"></span>)</div>
+            <div style="color: #e2e8f0; font-size: 14px;">Hay simulaciones corriendo antes que la tuya. Tiempo estimado de espera: <span id="queueEstText"></span> minutos.</div>
+            <div style="color: #94a3b8; font-size: 13px; margin-top: 8px;">Esta página se actualiza automáticamente. Podés cerrar el navegador y volver luego usando tu código <strong>{{ task.id[:4] | upper }}</strong>.</div>
+        </div>
+
         <!-- Progress Pipeline -->
         <div class="pipeline" id="pipeline">
             <div class="stage" data-stage="INICIANDO">
-                <span class="stage-icon">🚀</span>Iniciando
+                <span class="stage-icon">🚀</span><span data-i18n="pipe_start">Iniciando</span>
             </div>
             <div class="stage" data-stage="MODELO CARGADO">
-                <span class="stage-icon">📂</span>Modelo Cargado
+                <span class="stage-icon">📂</span><span data-i18n="pipe_model">Modelo Cargado</span>
             </div>
             <div class="stage" data-stage="CONFIGURANDO">
-                <span class="stage-icon">⚙️</span>Configurando
+                <span class="stage-icon">⚙️</span><span data-i18n="pipe_config">Configurando</span>
             </div>
             <div class="stage" data-stage="SIMULANDO">
-                <span class="stage-icon">🏃</span>Simulando
+                <span class="stage-icon">🏃</span><span data-i18n="pipe_sim">Simulando</span>
             </div>
             <div class="stage" data-stage="EXPORTANDO">
-                <span class="stage-icon">📤</span>Exportando CSV
+                <span class="stage-icon">📤</span><span data-i18n="pipe_export">Exportando CSV</span>
             </div>
             <div class="stage" data-stage="COMPLETADO">
-                <span class="stage-icon">✅</span>Listo
+                <span class="stage-icon">✅</span><span data-i18n="pipe_done">Listo</span>
             </div>
         </div>
 
         <div class="meta">
-            <strong>Ticket de Acceso Rápido:</strong> <span style="font-size:18px; font-weight:bold; color:#63b3ed; user-select:all; background:#1a2235; padding:2px 8px; border-radius:4px; margin-right:16px;">{{ task.id[:4] | upper }}</span><br>
+            <strong data-i18n="meta_ticket">Ticket de Acceso Rápido:</strong> <span style="font-size:18px; font-weight:bold; color:#63b3ed; user-select:all; background:#1a2235; padding:2px 8px; border-radius:4px; margin-right:16px;">{{ task.id[:4] | upper }}</span><br>
             <strong>ID:</strong> {{ task.id }}<br>
-            <strong>Creada:</strong> {{ task.created_at }}
-            {% if task.completed_at %}<br><strong>Completada:</strong> {{ task.completed_at }}{% endif %}
+            <strong data-i18n="meta_created">Creada:</strong> {{ task.created_at }}
+            {% if task.completed_at %}<br><strong data-i18n="meta_completed">Completada:</strong> {{ task.completed_at }}{% endif %}
         </div>
     </div>
 
     <!-- Live Log -->
     {% if task.status in ['PENDING', 'RUNNING'] or task.log %}
-    <div class="card">
+    <div class="card" id="logCard">
         <h2>📟 Log en Vivo</h2>
         <div class="log-container" id="logContainer">{{ task.log or 'Esperando...' }}</div>
     </div>
@@ -398,19 +471,15 @@
     <div id="dashboardContent">
     <!-- Parameters -->
     <div class="card">
-        <h2>⚙️ Parámetros Enviados ({{ params|length }})</h2>
-        {% if params %}
+        <h2><span class="icon">⚙️</span> <span data-i18n="params_title">Parámetros Enviados</span> ({{ params|length }})</h2>
         <div class="params-grid">
             {% for key, val in params.items() %}
             <div class="param-item">
-                <span class="key">{{ key }}</span>
-                <span class="val">{{ val }}</span>
+                <span class="key param-label" data-key="{{ key }}">{{ key }}</span>
+                <span class="val" style="color: #c0cad8; font-weight: 500;">{{ val }}</span>
             </div>
             {% endfor %}
         </div>
-        {% else %}
-        <p style="color:#556677; font-size:13px;">Sin parámetros</p>
-        {% endif %}
     </div>
 
     <!-- Results (only if completed) -->
@@ -418,57 +487,108 @@
     
     {% if csv_data %}
     <div class="card">
-        <h2>📊 Análisis de Rendimiento (Dashboard B2B)</h2>
+        <h2>📊 <span data-i18n="perf_title">Análisis de Rendimiento (Dashboard B2B)</span></h2>
         <div class="info-grid" style="margin-bottom: 12px; margin-top: 12px;">
             {% for row in csv_data %}
             {% if loop.index > 1 %}
             <div class="info-item" style="border-left: 3px solid #63b3ed;">
-                <div class="label" style="font-size: 11px;">{{ row[0] }}</div>
+                <div class="label kpi-cell" data-kpi="{{ row[0] }}" style="font-size: 11px;">{{ row[0] }}</div>
                 <div class="value" style="color: #60a5fa; font-size: 15px;">{{ "%.2f"|format(row[1]|float) }}</div>
             </div>
             {% endif %}
             {% endfor %}
         </div>
 
-        <!-- Canvas Grid para Gráficos -->
-        <div class="charts-grid">
-            <div class="chart-card">
-                <div class="chart-title">Promedios de Tiempo (Average)</div>
-                <div style="position: relative; height: 350px; width: 100%;">
-                    <canvas id="avgChart"></canvas>
+        <!-- DASHBOARD TABLERO.JPEG STYLE -->
+        <div class="dashboard-wrapper">
+            <div class="dashboard-header">
+                <h1 data-i18n="dash_main_title">SIMULATION STUDY RESULTS – EXECUTION ANALYSIS</h1>
+            </div>
+            
+            <div class="dashboard-grid">
+                <!-- Chart 1: Arrivals Wait -->
+                <div class="dash-chart-card">
+                    <div class="dash-chart-title" data-i18n="dash_chart1">WAITING TIME – ARRIVALS</div>
+                    <div class="chart-container">
+                        <canvas id="arrWaitChart"></canvas>
+                    </div>
+                </div>
+
+                <!-- Chart 2: Arrivals Density -->
+                <div class="dash-chart-card">
+                    <div class="dash-chart-title" data-i18n="dash_chart2">SPATIAL DENSITY – ARRIVALS</div>
+                    <div class="chart-container">
+                        <canvas id="arrDensChart"></canvas>
+                    </div>
+                </div>
+
+                <!-- Chart 3: Departures Wait -->
+                <div class="dash-chart-card">
+                    <div class="dash-chart-title" data-i18n="dash_chart3">WAITING TIME – DEPARTURES</div>
+                    <div class="chart-container">
+                        <canvas id="depWaitChart"></canvas>
+                    </div>
+                </div>
+
+                <!-- Chart 4: Departures Density -->
+                <div class="dash-chart-card">
+                    <div class="dash-chart-title" data-i18n="dash_chart4">SPATIAL DENSITY – DEPARTURES</div>
+                    <div class="chart-container">
+                        <canvas id="depDensChart"></canvas>
+                    </div>
                 </div>
             </div>
-            <div class="chart-card">
-                <div class="chart-title">Picos Máximos Detectados (Maximum)</div>
-                <div style="position: relative; height: 350px; width: 100%;">
-                    <canvas id="maxChart"></canvas>
+
+            <!-- Footer -->
+            <div class="dashboard-footer">
+                <div class="footer-box">
+                    <div class="footer-icon">
+                        <svg viewBox="0 0 24 24" width="36" height="36" fill="white"><path d="M11.99 2C6.47 2 2 6.48 2 12s4.47 10 9.99 10C17.52 22 22 17.52 22 12S17.52 2 11.99 2zM12 20c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8zm.5-13H11v6l5.25 3.15.75-1.23-4.5-2.67z"/></svg>
+                    </div>
+                    <div class="footer-text" data-i18n="dash_footer1">
+                        <strong>Waiting Time (P95):</strong> Shows average times (Blue) vs maximum peaks (Orange). High values in peaks indicate potential bottlenecks during rush hours.
+                    </div>
+                </div>
+                
+                <div class="footer-box" style="justify-content: center;">
+                    <div class="footer-icon">
+                        <svg viewBox="0 0 24 24" width="36" height="36" fill="white"><path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"/></svg>
+                    </div>
+                    <div class="footer-text" data-i18n="dash_footer2">
+                        <strong>Capacity & Density:</strong> Keep an eye on limits. Averages should be below the inferior limit (Target) for optimal passenger flow.
+                    </div>
+                </div>
+
+                <div class="footer-legend">
+                    <div class="legend-item"><span class="line-red"></span><span data-i18n="leg_target">LoS inferior (Target)</span></div>
+                    <div class="legend-item"><span class="line-black"></span><span data-i18n="leg_limit">LoS superior (Limit)</span></div>
+                    <div class="legend-item"><span class="box-blue"></span><span data-i18n="leg_avg">Average Time (Promedio)</span></div>
+                    <div class="legend-item"><span class="box-orange"></span><span data-i18n="leg_max">Maximum Time (Pico)</span></div>
                 </div>
             </div>
         </div>
         
-        <h2 style="margin-top: 32px; border-top: 1px solid rgba(255,255,255,0.05); padding-top: 16px;">🗃️ Datos Crudos (CSV)</h2>
+        <h2 style="margin-top: 32px; border-top: 1px solid rgba(255,255,255,0.05); padding-top: 16px;"><span data-i18n="raw_data">🗃️ Datos Crudos (CSV)</span></h2>
         <table id="resultsTable" class="display" style="width:100%">
             <thead>
                 <tr>
-                    {% for header in csv_headers %}
-                    <th>{{ header }}</th>
-                    {% endfor %}
+                    <th data-i18n="table_kpi">Indicador_KPI</th>
+                    <th data-i18n="table_value">Valor</th>
                 </tr>
             </thead>
             <tbody>
                 {% for row in csv_data %}
                 <tr>
-                    {% for col in row %}
-                    <td>{{ col }}</td>
-                    {% endfor %}
+                    <td class="kpi-cell" data-kpi="{{ row[0] }}">{{ row[0] }}</td>
+                    <td>{{ "%.4f"|format(row[1]|float) }}</td>
                 </tr>
                 {% endfor %}
             </tbody>
         </table>
 
         <div class="downloads" style="margin-top: 24px; padding-top: 16px; border-top: 1px solid rgba(255,255,255,0.05);">
-            <a class="btn-dl" href="/download/{{ task.id }}/csv">📄 Datos Raw (CSV)</a>
-            <button class="btn-dl" onclick="exportarPDF()" style="cursor:pointer; background:rgba(99, 179, 237, 0.1); color:#63b3ed; border:1px solid #63b3ed; font-family:'Inter', sans-serif;">📕 Descargar Dashboard (PDF)</button>
+            <a class="btn-dl" href="/download/{{ task.id }}/csv"><span data-i18n="btn_dl_csv">📄 Datos Raw (CSV)</span></a>
+            <button class="btn-dl" onclick="exportarPDF()" style="cursor:pointer; background:rgba(99, 179, 237, 0.1); color:#63b3ed; border:1px solid #63b3ed; font-family:'Inter', sans-serif;"><span data-i18n="btn_dl_pdf">📕 Descargar Dashboard (PDF)</span></button>
         </div>
     </div>
     </div> <!-- End of dashboardContent (Moved safely) -->
@@ -476,7 +596,7 @@
 
     {% if stats %}
     <div class="card">
-        <h2>📊 Resultados Estadísticos</h2>
+        <h2>📈 <span data-i18n="stats_title">Resultados Estadísticos</span></h2>
         <div class="info-grid">
             {% for label, value in stats.items() %}
             <div class="info-item">
@@ -500,12 +620,375 @@
 <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
 
 <script>
+// I18N configuration
+const resources = {
+  es: {
+    translation: {
+      "back": "Volver",
+      "task": "Tarea",
+      "sim_status": "Estado de la Simulación",
+      "btn_cancel": "🛑 Cancelar Simulación",
+      "status_PENDING": "PENDING",
+      "status_RUNNING": "RUNNING",
+      "status_COMPLETED": "COMPLETED",
+      "status_FAILED": "FAILED",
+      "status_ERROR: Cancelado por el usuario": "CANCELADO (por el usuario)",
+      "status_ERROR: Cancelado masivamente": "CANCELADO (masivo)",
+      "stage_CANCELADO": "CANCELADO",
+      "pipe_start": "Iniciando",
+      "pipe_model": "Modelo Cargado",
+      "pipe_config": "Configurando",
+      "pipe_sim": "Simulando",
+      "pipe_export": "Exportando CSV",
+      "pipe_done": "Listo",
+      "meta_ticket": "Ticket de Acceso Rápido:",
+      "meta_created": "Creada:",
+      "meta_completed": "Completada:",
+      "params_title": "Parámetros Enviados",
+      "perf_title": "Análisis de Rendimiento (Dashboard B2B)",
+      "stats_title": "Resultados Estadísticos",
+      "c_avg_title": "Promedios de Tiempo (Average)",
+      "c_max_title": "Picos Máximos Detectados (Maximum)",
+      "raw_data": "🗃️ Datos Crudos (CSV)",
+      "table_kpi": "Indicador_KPI",
+      "table_value": "Valor",
+      "btn_dl_csv": "📄 Datos Raw (CSV)",
+      "btn_dl_pdf": "📕 Descargar Dashboard (PDF)",
+      "dt_search": "Buscar:",
+      "dt_length": "Mostrar _MENU_ registros",
+      "dt_info": "Mostrando _START_ a _END_ de _TOTAL_ registros",
+      "dt_paginate_next": "Siguiente",
+      "dt_paginate_prev": "Anterior",
+      "dash_main_title": "RESULTADOS DE ESTUDIO – COMPARACIÓN DE ESCENARIOS",
+      "dash_chart1": "TIEMPO DE ESPERA – LLEGADAS",
+      "dash_chart2": "DENSIDAD ESPACIAL – LLEGADAS",
+      "dash_chart3": "TIEMPO DE ESPERA – SALIDAS",
+      "dash_chart4": "DENSIDAD ESPACIAL – SALIDAS",
+      "dash_footer1": "<strong>Tiempo de Espera:</strong> Muestra promedios (Azul) vs picos máximos (Naranja). Altos valores en picos indican cuellos de botella en hora punta.",
+      "dash_footer2": "<strong>Capacidad y Densidad:</strong> Monitorear límites. Los promedios deben estar bajo el límite inferior (Target) para un flujo óptimo.",
+      "leg_target": "LoS inferior (Target)",
+      "leg_limit": "LoS superior (Limit)",
+      "leg_avg": "Tiempo Promedio",
+      "leg_max": "Tiempo Máximo (Pico)",
+      "kpi": {
+          "ARR_Customs_Average": "Promedio Aduana Llegadas",
+          "ARR_Customs_Maximum": "Máximo Aduana Llegadas",
+          "ARR_DomBag_Average": "Promedio Equipaje Doméstico",
+          "ARR_DomBag_Maximum": "Máximo Equipaje Doméstico",
+          "ARR_INT_AutoInmig_Average": "Promedio Inmigración Automática Int.",
+          "ARR_INT_AutoInmig_Maximum": "Máximo Inmigración Automática Int.",
+          "ARR_INT_ManInmig_Average": "Promedio Inmigración Manual Int.",
+          "ARR_INT_ManInmig_Maximum": "Máximo Inmigración Manual Int.",
+          "ARR_IntBag_Average": "Promedio Equipaje Internacional",
+          "ARR_IntBag_Maximum": "Máximo Equipaje Internacional",
+          "DEP_Board_Average": "Promedio Control Embarque",
+          "DEP_Board_Maximum": "Máximo Control Embarque",
+          "DEP_Board_Wait_Average": "Promedio Espera Embarque",
+          "DEP_Board_Wait_Maximum": "Máximo Espera Embarque",
+          "SECDOM_Average": "Promedio Seguridad Doméstico",
+          "SECDOM_Maximum": "Máximo Seguridad Doméstico",
+          "CheckIn_Average": "Promedio Check-In",
+          "CheckIn_Maximum": "Máximo Check-In",
+          "CheckIn_Wait_Average": "Promedio Espera Check-In",
+          "CheckIn_Wait_Maximum": "Máximo Espera Check-In",
+          "DOM_GATES_Average": "Promedio Puertas Domésticas",
+          "DOM_GATES_Maximum": "Máximo Puertas Domésticas",
+          "SEC_DOM_Wait_Average": "Promedio Espera Seguridad",
+          "SEC_DOM_Wait_Maximum": "Máximo Espera Seguridad",
+          "ARR_Customs": "Douane / Aduana",
+          "ARR_DomBag": "Baggage Claim Dom.",
+          "ARR_INT_AutoInmig": "Migr. Auto (Int.)",
+          "ARR_INT_ManInmig": "Migr. Manual (Int.)",
+          "ARR_IntBag": "Baggage Claim Int.",
+          "DEP_Board": "Embarque",
+          "DEP_Board_Wait": "Espera Embarque",
+          "SECDOM": "Sec. Dom.",
+          "CheckIn": "Check-in Dom.",
+          "CheckIn_Wait": "Espera Check-in",
+          "DOM_GATES": "Dep Hall (Dom.)",
+          "SEC_DOM_Wait": "Espera Seg. Dom."
+      },
+      "variables": {
+        "RunLength": "Duración Simulación (Horas)",
+        "Replications": "Número de Réplicas",
+        "PassengerSpeeds": "Velocidad Pasajeros",
+        "DeparturesON": "Habilitar Salidas (Dep)",
+        "GROWTH_FACTOR_DEM_DEP": "Crecimiento (Salidas)",
+        "DwellTImeDepHALLCompanion": "Espera Acomp. (Salidas)",
+        "DwellTImeDepartureHallPAX": "Espera Pax (Salidas)",
+        "Percentage_CheckInManual": "% Check-In Manual",
+        "CheckInIslandsOpened": "Islas Check-In Abiertas",
+        "CheckIn_ProcessTime": "Tiempo Proceso Check-In",
+        "NumberPersoneelCheckIn": "Personal Check-In",
+        "NumberPersoneelBPCOntrol": "Personal Control BP",
+        "ProcessTimeBoardiPAssControl": "Tiempo Control BP",
+        "SECLinesOpened": "Líneas Seguridad Abiertas",
+        "WaitCapacityBodyScan": "Capacidad Espera BodyScan",
+        "BodyScan_Time": "Tiempo BodyScan",
+        "DivestCapacity": "Capacidad Bandejas (Seguridad)",
+        "DivestTIme": "Tiempo Despojo (Seguridad)",
+        "ArrivalsDOM_ON": "Habilitar Llegadas (Dom)",
+        "ArrivalsINT_ON": "Habilitar Llegadas (Int)",
+        "GROWTH_FACTOR_DEM_ARR": "Crecimiento (Llegadas)",
+        "DwellTImeARRIVALHALLCompanion": "Espera Acomp. (Llegadas)",
+        "DwellTImeArrivalHallPAX": "Espera Pax (Llegadas)",
+        "Numbe_ArrManualPssptLInesOpen": "Líneas Pasaporte Manual",
+        "Number_ARR_AUTOPssptLinesOPEN": "Líneas Pasaporte Auto",
+        "PercentManualPportContro_Arrival": "% Pasaporte Manual",
+        "NumberINTBeltOpen": "Cintas Equipaje (Int)",
+        "NumberDOMBeltOpen": "Cintas Equipaje (Dom)",
+        "No_DouaneLineOpen": "Líneas Aduana Abiertas",
+        "PercentDouaneScreen": "% Inspección Aduana",
+        "DivestDouaneTime": "Tiempo Inspección Aduana",
+        "StartCollectData": "Inicio Recolección Datos (Hr)",
+        "LengthCollectionData": "Duración Recolección (Hr)",
+        "FrecuencyofCollection": "Frecuencia Muestreo (Seg)"
+      }
+    }
+  },
+  en: {
+    translation: {
+      "back": "Back",
+      "task": "Task",
+      "sim_status": "Simulation Status",
+      "btn_cancel": "🛑 Cancel Simulation",
+      "status_PENDING": "PENDING",
+      "status_RUNNING": "RUNNING",
+      "status_COMPLETED": "COMPLETED",
+      "status_FAILED": "FAILED",
+      "status_ERROR: Cancelado por el usuario": "CANCELED (by user)",
+      "status_ERROR: Cancelado masivamente": "CANCELED (mass)",
+      "stage_CANCELADO": "CANCELED",
+      "pipe_start": "Starting",
+      "pipe_model": "Model Loaded",
+      "pipe_config": "Configuring",
+      "pipe_sim": "Simulating",
+      "pipe_export": "Exporting CSV",
+      "pipe_done": "Done",
+      "meta_ticket": "Quick Access Ticket:",
+      "meta_created": "Created:",
+      "meta_completed": "Completed:",
+      "params_title": "Submitted Parameters",
+      "perf_title": "Performance Analysis (B2B Dashboard)",
+      "stats_title": "Statistical Results",
+      "c_avg_title": "Average Waiting Time",
+      "c_max_title": "Maximum Peaks Detected",
+      "raw_data": "🗃️ Raw Data (CSV)",
+      "table_kpi": "KPI_Indicator",
+      "table_value": "Value",
+      "btn_dl_csv": "📄 Raw Data (CSV)",
+      "btn_dl_pdf": "📕 Download Dashboard (PDF)",
+      "dt_search": "Search:",
+      "dt_length": "Show _MENU_ entries",
+      "dt_info": "Showing _START_ to _END_ of _TOTAL_ entries",
+      "dt_paginate_next": "Next",
+      "dt_paginate_prev": "Previous",
+      "dash_main_title": "SIMULATION STUDY RESULTS – SCENARIOS COMPARISON",
+      "dash_chart1": "WAITING TIME – ARRIVALS",
+      "dash_chart2": "SPATIAL DENSITY – ARRIVALS",
+      "dash_chart3": "WAITING TIME – DEPARTURES",
+      "dash_chart4": "SPATIAL DENSITY – DEPARTURES",
+      "dash_footer1": "<strong>Waiting Time:</strong> Shows average times (Blue) vs maximum peaks (Orange). High values in peaks indicate potential bottlenecks during rush hours.",
+      "dash_footer2": "<strong>Capacity & Density:</strong> Keep an eye on limits. Averages should be below the inferior limit (Target) for optimal passenger flow.",
+      "leg_target": "LoS inferior (Target)",
+      "leg_limit": "LoS superior (Limit)",
+      "leg_avg": "Average Time",
+      "leg_max": "Maximum Time (Peak)",
+      "kpi": {
+          "ARR_Customs_Average": "Arrival Customs Average",
+          "ARR_Customs_Maximum": "Arrival Customs Maximum",
+          "ARR_DomBag_Average": "Domestic Baggage Average",
+          "ARR_DomBag_Maximum": "Domestic Baggage Maximum",
+          "ARR_INT_AutoInmig_Average": "Intl Auto Immigration Average",
+          "ARR_INT_AutoInmig_Maximum": "Intl Auto Immigration Maximum",
+          "ARR_INT_ManInmig_Average": "Intl Manual Immigration Average",
+          "ARR_INT_ManInmig_Maximum": "Intl Manual Immigration Maximum",
+          "ARR_IntBag_Average": "Intl Baggage Average",
+          "ARR_IntBag_Maximum": "Intl Baggage Maximum",
+          "DEP_Board_Average": "Boarding Control Average",
+          "DEP_Board_Maximum": "Boarding Control Maximum",
+          "DEP_Board_Wait_Average": "Boarding Wait Average",
+          "DEP_Board_Wait_Maximum": "Boarding Wait Maximum",
+          "SECDOM_Average": "Domestic Security Average",
+          "SECDOM_Maximum": "Domestic Security Maximum",
+          "CheckIn_Average": "Check-In Average",
+          "CheckIn_Maximum": "Check-In Maximum",
+          "CheckIn_Wait_Average": "Check-In Wait Average",
+          "CheckIn_Wait_Maximum": "Check-In Wait Maximum",
+          "DOM_GATES_Average": "Domestic Gates Average",
+          "DOM_GATES_Maximum": "Domestic Gates Maximum",
+          "SEC_DOM_Wait_Average": "Security Wait Average",
+          "SEC_DOM_Wait_Maximum": "Security Wait Maximum",
+          "ARR_Customs": "Douane / Customs",
+          "ARR_DomBag": "Baggage Claim Dom.",
+          "ARR_INT_AutoInmig": "Migr. Auto (Int.)",
+          "ARR_INT_ManInmig": "Migr. Manual (Int.)",
+          "ARR_IntBag": "Baggage Claim Int.",
+          "DEP_Board": "Boarding",
+          "DEP_Board_Wait": "Wait Boarding",
+          "SECDOM": "Sec. Dom.",
+          "CheckIn": "Check-in Dom.",
+          "CheckIn_Wait": "Wait Check-in",
+          "DOM_GATES": "Dep Hall (Dom.)",
+          "SEC_DOM_Wait": "Wait Sec. Dom."
+      },
+      "variables": {
+        "RunLength": "Simulation Length (Hours)",
+        "Replications": "Number of Replications",
+        "PassengerSpeeds": "Passenger Speed",
+        "DeparturesON": "Enable Departures",
+        "GROWTH_FACTOR_DEM_DEP": "Growth Factor (Departures)",
+        "DwellTImeDepHALLCompanion": "Companion Wait (Departures)",
+        "DwellTImeDepartureHallPAX": "Pax Wait (Departures)",
+        "Percentage_CheckInManual": "% Manual Check-In",
+        "CheckInIslandsOpened": "Check-In Islands Open",
+        "CheckIn_ProcessTime": "Check-In Process Time",
+        "NumberPersoneelCheckIn": "Check-In Staff Count",
+        "NumberPersoneelBPCOntrol": "Boarding Pass Staff",
+        "ProcessTimeBoardiPAssControl": "Boarding Pass Process Time",
+        "SECLinesOpened": "Security Lines Open",
+        "WaitCapacityBodyScan": "Body Scan Wait Capacity",
+        "BodyScan_Time": "Body Scan Time",
+        "DivestCapacity": "Divest Capacity",
+        "DivestTIme": "Divest Time",
+        "ArrivalsDOM_ON": "Enable Domestic Arrivals",
+        "ArrivalsINT_ON": "Enable International Arrivals",
+        "GROWTH_FACTOR_DEM_ARR": "Growth Factor (Arrivals)",
+        "DwellTImeARRIVALHALLCompanion": "Companion Wait (Arrivals)",
+        "DwellTImeArrivalHallPAX": "Pax Wait (Arrivals)",
+        "Numbe_ArrManualPssptLInesOpen": "Manual Passport Lines",
+        "Number_ARR_AUTOPssptLinesOPEN": "Auto Passport Lines",
+        "PercentManualPportContro_Arrival": "% Manual Passport",
+        "NumberINTBeltOpen": "Intl Baggage Belts",
+        "NumberDOMBeltOpen": "Dom Baggage Belts",
+        "No_DouaneLineOpen": "Customs Lines Open",
+        "PercentDouaneScreen": "% Customs Screening",
+        "DivestDouaneTime": "Customs Divest Time",
+        "StartCollectData": "Start Data Collection (Hr)",
+        "LengthCollectionData": "Data Collection Length (Hr)",
+        "FrecuencyofCollection": "Sampling Frequency (Sec)"
+      }
+    }
+  }
+};
+
+i18next.init({
+  lng: localStorage.getItem('simio_lang') || 'es',
+  fallbackLng: 'es',
+  resources
+}, function(err, t) {
+  updateContent();
+});
+
+function updateContent() {
+  document.querySelectorAll('[data-i18n]').forEach(el => {
+      el.innerHTML = i18next.t(el.getAttribute('data-i18n'));
+  });
+
+  const kpiMap = {};
+  const kpiObj = i18next.t('kpi', { returnObjects: true });
+  if (kpiObj) {
+      for (let k in kpiObj) {
+          kpiMap[k.toUpperCase()] = kpiObj[k];
+      }
+  }
+
+  const varMap = {};
+  const varObj = i18next.t('variables', { returnObjects: true });
+  if (varObj) {
+      for (let k in varObj) {
+          varMap[k.toUpperCase()] = varObj[k];
+      }
+  }
+
+  // Update KPI cells safely mapping Tally variables
+  document.querySelectorAll('.kpi-cell').forEach(el => {
+      const rawKey = el.getAttribute('data-kpi');
+      const upKey = rawKey.toUpperCase();
+      
+      let foundLabel = kpiMap[upKey];
+      if (!foundLabel && upKey.startsWith('TALLY')) {
+           foundLabel = kpiMap[upKey.substring(5)];
+      }
+      if (!foundLabel && upKey.endsWith('_AVERAGE')) {
+           foundLabel = kpiMap[upKey.replace('_AVERAGE', '')];
+           if (foundLabel) foundLabel += i18next.language === 'es' ? ' (Promedio)' : ' (Average)';
+      }
+      if (!foundLabel && upKey.endsWith('_MAXIMUM')) {
+           foundLabel = kpiMap[upKey.replace('_MAXIMUM', '')];
+           if (foundLabel) foundLabel += i18next.language === 'es' ? ' (Máximo)' : ' (Maximum)';
+      }
+      
+      el.textContent = foundLabel || rawKey;
+  });
+
+  // Update Param cells
+  document.querySelectorAll('.param-label').forEach(el => {
+      const rawKey = el.getAttribute('data-key');
+      const upKey = rawKey.toUpperCase();
+      el.textContent = varMap[upKey] || rawKey;
+  });
+  
+  if (window.resultsTableInstance) {
+      const dt = window.resultsTableInstance;
+      const lang = i18next.language;
+      const oLang = dt.context[0].oLanguage;
+      oLang.sSearch = i18next.t('dt_search');
+      oLang.sLengthMenu = i18next.t('dt_length');
+      oLang.sInfo = i18next.t('dt_info');
+      oLang.oPaginate.sNext = i18next.t('dt_paginate_next');
+      oLang.oPaginate.sPrevious = i18next.t('dt_paginate_prev');
+      dt.draw();
+  }
+  const lang = i18next.language;
+  document.getElementById('flag-es').className = lang === 'es' ? 'flag-btn active' : 'flag-btn';
+  document.getElementById('flag-en').className = lang === 'en' ? 'flag-btn active' : 'flag-btn';
+}
+
+function setLanguage(lang) {
+  i18next.changeLanguage(lang, () => {
+      localStorage.setItem('simio_lang', lang);
+      updateContent();
+      // Update charts labels
+      const updateChart = (chartInstance, originalLabels) => {
+          if (!chartInstance) return;
+          chartInstance.data.labels = originalLabels.map(lbl => {
+              const tr = i18next.t('kpi.' + lbl);
+              return tr !== 'kpi.' + lbl ? tr : lbl;
+          });
+          chartInstance.data.datasets[0].label = i18next.t('leg_target');
+          chartInstance.data.datasets[1].label = i18next.t('leg_limit');
+          chartInstance.data.datasets[2].label = lang === 'es' ? 'Promedio' : 'Average';
+          chartInstance.data.datasets[3].label = lang === 'es' ? 'Máximo' : 'Maximum';
+          chartInstance.update();
+      };
+      updateChart(window.arrWaitChartInstance, window.arrWaitOriginalLabels);
+      updateChart(window.arrDensChartInstance, window.arrDensOriginalLabels);
+      updateChart(window.depWaitChartInstance, window.depWaitOriginalLabels);
+      updateChart(window.depDensChartInstance, window.depDensOriginalLabels);
+  });
+}
+
+async function cancelCurrentTask() {
+    if(!confirm("¿Seguro que deseas cancelar esta simulación?")) return;
+    try {
+        const res = await fetch(`/api/task/{{ task.id }}/cancel`, { method: 'POST' });
+        if(res.ok) window.location.reload();
+    } catch(e) {}
+}
+
 $(document).ready(function() {
     if ($('#resultsTable').length) {
-        $('#resultsTable').DataTable({
+        window.resultsTableInstance = $('#resultsTable').DataTable({
             "pageLength": 10,
             "language": {
-                "url": "//cdn.datatables.net/plug-ins/1.13.6/i18n/es-ES.json"
+                "search": i18next.t('dt_search'),
+                "lengthMenu": i18next.t('dt_length'),
+                "info": i18next.t('dt_info'),
+                "paginate": {
+                    "next": i18next.t('dt_paginate_next'),
+                    "previous": i18next.t('dt_paginate_prev')
+                }
             },
             "scrollX": true
         });
@@ -528,70 +1011,132 @@ $(document).ready(function() {
 
     rawData.forEach(item => {
         if (item.key.includes('_Average')) {
-            avgLabels.push(item.key.replace('_Average', '').replace('Tally', ''));
+            avgLabels.push(item.key.replace('_Average', '').replace('Tally_', ''));
             avgData.push(item.value);
         } else if (item.key.includes('_Maximum')) {
-            maxLabels.push(item.key.replace('_Maximum', '').replace('Tally', ''));
+            maxLabels.push(item.key.replace('_Maximum', '').replace('Tally_', ''));
             maxData.push(item.value);
         }
     });
 
-    Chart.defaults.color = '#8899aa';
-    Chart.defaults.font.family = "'Inter', sans-serif";
+    const arrWaitKeys = ['ARR_Customs', 'ARR_INT_AutoInmig', 'ARR_INT_ManInmig'];
+    const arrDensKeys = ['ARR_DomBag', 'ARR_IntBag'];
+    const depWaitKeys = ['CheckIn_Wait', 'SEC_DOM_Wait', 'DEP_Board_Wait'];
+    const depDensKeys = ['CheckIn', 'SECDOM', 'DEP_Board', 'DOM_GATES'];
+
+    function parseKPIs(keysArray) {
+        const labels = [];
+        const avgValues = [];
+        const maxValues = [];
+        keysArray.forEach(k => {
+            labels.push(k);
+            const avgItem = rawData.find(x => x.key === k + '_Average' || x.key === 'Tally' + k + '_Average');
+            const maxItem = rawData.find(x => x.key === k + '_Maximum' || x.key === 'Tally' + k + '_Maximum');
+            avgValues.push(avgItem ? avgItem.value : 0);
+            maxValues.push(maxItem ? maxItem.value : 0);
+        });
+        return { labels, avgValues, maxValues };
+    }
+
+    const arrWaitData = parseKPIs(arrWaitKeys);
+    const arrDensData = parseKPIs(arrDensKeys);
+    const depWaitData = parseKPIs(depWaitKeys);
+    const depDensData = parseKPIs(depDensKeys);
+
+    window.arrWaitOriginalLabels = [...arrWaitData.labels];
+    window.arrDensOriginalLabels = [...arrDensData.labels];
+    window.depWaitOriginalLabels = [...depWaitData.labels];
+    window.depDensOriginalLabels = [...depDensData.labels];
+
+    const currentLang = i18next.language || 'es';
     
-    if (document.getElementById('avgChart') && avgLabels.length > 0) {
-        window.avgChartInstance = new Chart(document.getElementById('avgChart'), {
+    function getTranslatedLabels(originalLabels) {
+        return originalLabels.map(lbl => {
+            const tr = i18next.t('kpi.' + lbl);
+            return tr !== 'kpi.' + lbl ? tr : lbl;
+        });
+    }
+
+    Chart.defaults.color = '#a0aec0';
+    Chart.defaults.font.family = "'Inter', sans-serif";
+
+    function createMixedChart(canvasId, labels, avgData, maxData) {
+        if (!document.getElementById(canvasId)) return null;
+        
+        // Target & Limit lines (Dummy calc for visual)
+        const targetLine = avgData.map(v => Math.max(v * 0.8, 5));
+        const limitLine = maxData.map(v => Math.max(v * 1.2, 10));
+
+        return new Chart(document.getElementById(canvasId), {
             type: 'bar',
             data: {
-                labels: avgLabels,
-                datasets: [{
-                    label: 'Promedio (mins)',
-                    data: avgData,
-                    backgroundColor: 'rgba(99, 179, 237, 0.6)',
-                    borderColor: '#63b3ed',
-                    borderWidth: 1,
-                    borderRadius: 4
-                }]
+                labels: labels,
+                datasets: [
+                    {
+                        type: 'line',
+                        label: i18next.t('leg_target') || 'LoS inferior (Target)',
+                        data: targetLine,
+                        borderColor: '#ef4444',
+                        borderDash: [5, 5],
+                        borderWidth: 2,
+                        pointBackgroundColor: '#ef4444',
+                        pointRadius: 4,
+                        fill: false,
+                        order: 1
+                    },
+                    {
+                        type: 'line',
+                        label: i18next.t('leg_limit') || 'LoS superior (Limit)',
+                        data: limitLine,
+                        borderColor: '#94a3b8',
+                        borderDash: [5, 5],
+                        borderWidth: 2,
+                        pointBackgroundColor: '#94a3b8',
+                        pointRadius: 4,
+                        fill: false,
+                        order: 2
+                    },
+                    {
+                        type: 'bar',
+                        label: currentLang === 'es' ? 'Promedio' : 'Average',
+                        data: avgData,
+                        backgroundColor: '#3b82f6', // Blue
+                        order: 3
+                    },
+                    {
+                        type: 'bar',
+                        label: currentLang === 'es' ? 'Máximo' : 'Maximum',
+                        data: maxData,
+                        backgroundColor: '#f59e0b', // Orange
+                        order: 4
+                    }
+                ]
             },
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
-                plugins: { legend: { display: false } },
+                plugins: { 
+                    legend: { display: false } // We have custom legend in footer
+                },
                 scales: {
-                    y: { beginAtZero: true, grid: { color: 'rgba(255,255,255,0.05)' } },
-                    x: { grid: { display: false } }
+                    y: { 
+                        beginAtZero: true, 
+                        grid: { color: 'rgba(255,255,255,0.05)' },
+                        title: { display: true, text: 'Time / Value', color: '#a0aec0' }
+                    },
+                    x: { 
+                        grid: { display: false },
+                        ticks: { autoSkip: false, maxRotation: 45, minRotation: 45 }
+                    }
                 }
             }
         });
     }
 
-    if (document.getElementById('maxChart') && maxLabels.length > 0) {
-        window.maxChartInstance = new Chart(document.getElementById('maxChart'), {
-            type: 'polarArea',
-            data: {
-                labels: maxLabels,
-                datasets: [{
-                    label: 'Pico Máximo',
-                    data: maxData,
-                    backgroundColor: [
-                        'rgba(244, 63, 94, 0.5)', 'rgba(234, 179, 8, 0.5)',
-                        'rgba(16, 185, 129, 0.5)', 'rgba(99, 179, 237, 0.5)',
-                        'rgba(168, 85, 247, 0.5)', 'rgba(236, 72, 153, 0.5)'
-                    ],
-                    borderColor: 'rgba(255,255,255,0.1)',
-                    borderWidth: 1
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: { legend: { position: 'right' } },
-                scales: {
-                    r: { grid: { color: 'rgba(255,255,255,0.1)' }, ticks: { backdropColor: 'transparent', color: '#8899aa' } }
-                }
-            }
-        });
-    }
+    window.arrWaitChartInstance = createMixedChart('arrWaitChart', getTranslatedLabels(arrWaitData.labels), arrWaitData.avgValues, arrWaitData.maxValues);
+    window.arrDensChartInstance = createMixedChart('arrDensChart', getTranslatedLabels(arrDensData.labels), arrDensData.avgValues, arrDensData.maxValues);
+    window.depWaitChartInstance = createMixedChart('depWaitChart', getTranslatedLabels(depWaitData.labels), depWaitData.avgValues, depWaitData.maxValues);
+    window.depDensChartInstance = createMixedChart('depDensChart', getTranslatedLabels(depDensData.labels), depDensData.avgValues, depDensData.maxValues);
     {% endif %}
 
 const STAGES_ORDER = [
@@ -604,82 +1149,172 @@ function exportarPDF() {
     btn.innerHTML = '⏳ Generando PDF...';
     btn.disabled = true;
 
-    // Guardar posición de scroll original y subir a (0,0) para evitar páginas en blanco por bug de html2canvas
-    const scrollPos = window.scrollY;
-    window.scrollTo(0, 0);
+    try {
+        const { jsPDF } = window.jspdf;
 
-    const element = document.getElementById('dashboardContent');
-    
-    // Activar estilos PDF (fondo blanco, textos oscuros, ocultar botones)
-    element.classList.add('pdf-mode');
+        // Dimensiones A4 landscape en mm
+        const W = 297, H = 210;
+        const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
 
-    // Adaptar gráficos para fondo claro
-    if (window.avgChartInstance) {
-        window.avgChartInstance.options.scales.x.grid = { color: 'rgba(0,0,0,0.08)' };
-        window.avgChartInstance.options.scales.y.grid = { color: 'rgba(0,0,0,0.08)' };
-        if (!window.avgChartInstance.options.scales.x.ticks) window.avgChartInstance.options.scales.x.ticks = {};
-        if (!window.avgChartInstance.options.scales.y.ticks) window.avgChartInstance.options.scales.y.ticks = {};
-        window.avgChartInstance.options.scales.x.ticks.color = '#2d3748';
-        window.avgChartInstance.options.scales.y.ticks.color = '#2d3748';
-        window.avgChartInstance.update('none');
-    }
-    if (window.maxChartInstance) {
-        window.maxChartInstance.options.scales.r.grid = { color: 'rgba(0,0,0,0.08)' };
-        if (!window.maxChartInstance.options.scales.r.ticks) window.maxChartInstance.options.scales.r.ticks = {};
-        window.maxChartInstance.options.scales.r.ticks.color = '#2d3748';
-        if (!window.maxChartInstance.options.plugins) window.maxChartInstance.options.plugins = {};
-        if (!window.maxChartInstance.options.plugins.legend) window.maxChartInstance.options.plugins.legend = {};
-        if (!window.maxChartInstance.options.plugins.legend.labels) window.maxChartInstance.options.plugins.legend.labels = {};
-        window.maxChartInstance.options.plugins.legend.labels.color = '#2d3748';
-        window.maxChartInstance.update('none');
-    }
+        // Fondo oscuro
+        doc.setFillColor(13, 19, 33);
+        doc.rect(0, 0, W, H, 'F');
 
-    const opt = {
-        margin:       [0.4, 0.4, 0.4, 0.4],
-        filename:     'Simio_Dashboard_{{ task.id[:4] | upper }}.pdf',
-        image:        { type: 'jpeg', quality: 0.98 },
-        html2canvas:  { 
-            scale: 2, 
-            useCORS: true, 
-            backgroundColor: '#ffffff',
-            scrollX: 0,
-            scrollY: 0
-        },
-        jsPDF:        { unit: 'in', format: 'a4', orientation: 'landscape' },
-        pagebreak:    { mode: ['css', 'legacy'] }
-    };
+        // Título
+        const mainTitle = document.querySelector('[data-i18n="dash_main_title"]')?.textContent || 'Dashboard';
+        doc.setFillColor(17, 52, 99);
+        doc.roundedRect(5, 4, W - 10, 14, 2, 2, 'F');
+        doc.setTextColor(255, 255, 255);
+        doc.setFontSize(13);
+        doc.setFont('helvetica', 'bold');
+        doc.text(mainTitle, W / 2, 13, { align: 'center' });
 
-    html2pdf().set(opt).from(element).save().then(() => {
-        // Desactivar estilos PDF
-        element.classList.remove('pdf-mode');
+        // Títulos de gráficos
+        const titles = [
+            document.querySelector('[data-i18n="dash_chart1"]')?.textContent || 'Chart 1',
+            document.querySelector('[data-i18n="dash_chart2"]')?.textContent || 'Chart 2',
+            document.querySelector('[data-i18n="dash_chart3"]')?.textContent || 'Chart 3',
+            document.querySelector('[data-i18n="dash_chart4"]')?.textContent || 'Chart 4'
+        ];
 
-        // Revertir gráficos a modo oscuro
-        if (window.avgChartInstance) {
-            window.avgChartInstance.options.scales.x.grid = { display: false };
-            window.avgChartInstance.options.scales.y.grid = { color: 'rgba(255,255,255,0.05)' };
-            window.avgChartInstance.options.scales.x.ticks.color = '#8899aa';
-            window.avgChartInstance.options.scales.y.ticks.color = '#8899aa';
-            window.avgChartInstance.update('none');
-        }
-        if (window.maxChartInstance) {
-            window.maxChartInstance.options.scales.r.grid = { color: 'rgba(255,255,255,0.1)' };
-            window.maxChartInstance.options.scales.r.ticks.color = '#8899aa';
-            window.maxChartInstance.options.plugins.legend.labels.color = '#8899aa';
-            window.maxChartInstance.update('none');
-        }
+        const charts = [window.arrWaitChartInstance, window.arrDensChartInstance, window.depWaitChartInstance, window.depDensChartInstance];
+        const legendH = 28;               // leyenda ocupa 28mm en la parte inferior
+        const gap     = 3;                // gap entre fila superior e inferior
+        const colW    = (W - 18) / 2;
+        const rowH    = (H - 21 - gap - legendH - 3) / 2;  // altura de cada cuadrante
+        const row2Y   = 21 + rowH + gap;
 
-        // Restaurar posición de scroll original
-        window.scrollTo(0, scrollPos);
+        const positions = [
+            { x: 5,          y: 21 },
+            { x: 10 + colW,  y: 21 },
+            { x: 5,          y: row2Y },
+            { x: 10 + colW,  y: row2Y }
+        ];
 
-        btn.innerHTML = originalText;
-        btn.disabled = false;
-    }).catch(err => {
+        charts.forEach((chart, i) => {
+            if (!chart) return;
+            const pos = positions[i];
+
+            // Caja de fondo
+            doc.setFillColor(18, 29, 53);
+            doc.roundedRect(pos.x, pos.y, colW, rowH, 2, 2, 'F');
+
+            // Barra de título
+            doc.setFillColor(10, 30, 61);
+            doc.roundedRect(pos.x, pos.y, colW, 8, 2, 2, 'F');
+            doc.setTextColor(144, 205, 244);
+            doc.setFontSize(7);
+            doc.setFont('helvetica', 'bold');
+            doc.text(titles[i], pos.x + colW / 2, pos.y + 5.5, { align: 'center' });
+
+            // Imagen del gráfico
+            const imgData = chart.toBase64Image('image/png', 1.0);
+            doc.addImage(imgData, 'PNG', pos.x + 2, pos.y + 9, colW - 4, rowH - 11);
+        });
+
+        // ── LEYENDA INFERIOR  (replica exacta del footer del tablero) ────────
+        const legY = H - legendH;            // y donde empieza la barra
+        doc.setFillColor(10, 16, 38);
+        doc.roundedRect(5, legY + 1, W - 10, legendH - 2, 2, 2, 'F');
+
+        // Separador superior
+        doc.setDrawColor(40, 70, 130);
+        doc.setLineWidth(0.3);
+        doc.line(5, legY + 1, W - 5, legY + 1);
+
+        // ── Bloque 1: ícono reloj + texto Tiempo de Espera ──────────────────
+        const b1x = 10, b1y = legY + 6;
+
+        // Ícono círculo (aproxima el reloj)
+        doc.setFillColor(20, 50, 100);
+        doc.circle(b1x + 5, b1y + 8, 5.5, 'F');
+        doc.setDrawColor(80, 130, 200);
+        doc.setLineWidth(0.5);
+        doc.circle(b1x + 5, b1y + 8, 5.5, 'S');
+        // manecillas del reloj (simplificado)
+        doc.setDrawColor(144, 205, 244);
+        doc.setLineWidth(0.6);
+        doc.line(b1x + 5, b1y + 8, b1x + 5, b1y + 4.5);  // manecilla larga
+        doc.line(b1x + 5, b1y + 8, b1x + 7.5, b1y + 9);  // manecilla corta
+
+        // Texto del bloque 1
+        doc.setTextColor(255, 255, 255);
+        doc.setFontSize(8);
+        doc.setFont('helvetica', 'bold');
+        doc.text('Tiempo de Espera:', b1x + 13, b1y + 4);
+        doc.setFont('helvetica', 'normal');
+        doc.setTextColor(190, 205, 230);
+        doc.setFontSize(7);
+        doc.text('Muestra promedios (Azul) vs picos maximos (Naranja).', b1x + 13, b1y + 9.5);
+        doc.text('Altos valores en picos indican cuellos de botella.', b1x + 13, b1y + 14.5);
+
+        // ── Bloque 2: ícono personas + texto Capacidad y Densidad ────────────
+        const b2x = W * 0.34, b2y = legY + 6;
+
+        // Ícono círculo (aproxima el grupo de personas)
+        doc.setFillColor(20, 50, 100);
+        doc.circle(b2x + 5, b2y + 8, 5.5, 'F');
+        doc.setDrawColor(80, 130, 200);
+        doc.setLineWidth(0.5);
+        doc.circle(b2x + 5, b2y + 8, 5.5, 'S');
+        // siluetas simplificadas
+        doc.setFillColor(144, 205, 244);
+        doc.circle(b2x + 3.5, b2y + 6, 1.3, 'F');
+        doc.circle(b2x + 6.5, b2y + 6, 1.3, 'F');
+        doc.setFillColor(144, 205, 244);
+        doc.ellipse(b2x + 3.5, b2y + 10, 2.2, 1.5, 'F');
+        doc.ellipse(b2x + 6.5, b2y + 10, 2.2, 1.5, 'F');
+
+        // Texto del bloque 2
+        doc.setTextColor(255, 255, 255);
+        doc.setFontSize(8);
+        doc.setFont('helvetica', 'bold');
+        doc.text('Capacidad y Densidad:', b2x + 13, b2y + 4);
+        doc.setFont('helvetica', 'normal');
+        doc.setTextColor(190, 205, 230);
+        doc.setFontSize(7);
+        doc.text('Monitorear limites. Los promedios deben estar', b2x + 13, b2y + 9.5);
+        doc.text('bajo el limite inferior (Target) para flujo optimo.', b2x + 13, b2y + 14.5);
+
+        // ── 4 Items leyenda apilados verticalmente (columna derecha) ─────────
+        const legItems = [
+            { label: i18next.t('leg_target') || 'LoS inferior (Target)', color: [239, 68,  68],  dash: true  },
+            { label: i18next.t('leg_limit')  || 'LoS superior (Limit)',  color: [148, 163, 184], dash: true  },
+            { label: i18next.t('leg_avg')    || 'Tiempo Promedio',       color: [59,  130, 246], dash: false },
+            { label: i18next.t('leg_max')    || 'Tiempo Maximo (Pico)',  color: [245, 158, 11],  dash: false },
+        ];
+        const liX = W * 0.72;   // columna de leyenda empieza al 72% del ancho
+        legItems.forEach((item, i) => {
+            const iy = legY + 6 + i * 6;
+
+            if (item.dash) {
+                doc.setDrawColor(...item.color);
+                doc.setLineWidth(0.8);
+                doc.setLineDashPattern([1.8, 1.2], 0);
+                doc.line(liX, iy, liX + 10, iy);
+                doc.setFillColor(...item.color);
+                doc.circle(liX + 2.5, iy, 1.0, 'F');   // punto izquierda
+                doc.circle(liX + 7.5, iy, 1.0, 'F');   // punto derecha
+                doc.setLineDashPattern([], 0);
+            } else {
+                doc.setFillColor(...item.color);
+                doc.roundedRect(liX, iy - 2.5, 10, 5, 1, 1, 'F');
+            }
+            doc.setTextColor(215, 225, 240);
+            doc.setFontSize(7.5);
+            doc.setFont('helvetica', 'normal');
+            doc.text(item.label, liX + 12, iy + 0.8);
+        });
+
+        doc.save('Simio_Dashboard_{{ task.id[:4] | upper }}.pdf');
+
+    } catch(err) {
         console.error(err);
-        element.classList.remove('pdf-mode');
-        window.scrollTo(0, scrollPos);
-        btn.innerHTML = originalText;
-        btn.disabled = false;
-    });
+        alert('Error al generar el PDF: ' + err.message);
+    }
+
+    btn.innerHTML = originalText;
+    btn.disabled = false;
 }
 
 function updatePipeline(currentStage, status) {
@@ -734,17 +1369,19 @@ setInterval(async () => {
         // Update pipeline
         updatePipeline(data.stage, data.status);
 
-        // Update queue position
-        const queueBadge = document.getElementById('queueBadge');
-        if (data.status === 'RUNNING' || data.status === 'PENDING') {
-            if (data.queue_position > 0) {
-                queueBadge.textContent = 'En Cola: Posición ' + data.queue_position + ' (Espera estimada: ' + (data.queue_position * 2) + ' mins)';
-                queueBadge.style.display = 'inline-block';
-            } else {
-                queueBadge.style.display = 'none';
+        // Update queue banner
+        const queueBanner = document.getElementById('queueBanner');
+        const logCard = document.getElementById('logCard');
+        if (data.status === 'PENDING' && data.queue_position > 0) {
+            if (queueBanner) {
+                queueBanner.style.display = 'block';
+                document.getElementById('queuePosText').textContent = data.queue_position;
+                document.getElementById('queueEstText').textContent = (data.queue_position * 2);
             }
+            if (logCard) logCard.style.display = 'none'; // hide log while queued
         } else {
-            queueBadge.style.display = 'none';
+            if (queueBanner) queueBanner.style.display = 'none';
+            if (logCard && (data.status === 'RUNNING' || data.log)) logCard.style.display = 'block';
         }
 
         // Update log

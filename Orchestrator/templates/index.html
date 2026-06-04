@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Simio Agent Pro</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/i18next@23.10.1/dist/umd/i18next.min.js"></script>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
@@ -389,24 +390,63 @@
             margin-bottom: 24px;
             user-select: all;
         }
+
+        /* Lang Toggle */
+        .header-actions { display: flex; gap: 8px; margin-left: auto; align-items: center; }
+        .flag-btn { 
+            background: rgba(99, 179, 237, 0.1); 
+            border: 1px solid rgba(99, 179, 237, 0.3); 
+            padding: 6px 10px;
+            border-radius: 6px;
+            cursor: pointer; 
+            transition: all 0.2s;
+            opacity: 0.5;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .flag-btn:hover { background: rgba(99, 179, 237, 0.2); opacity: 0.8; }
+        .flag-btn.active { opacity: 1; background: rgba(99, 179, 237, 0.25); border-color: #63b3ed; box-shadow: 0 0 8px rgba(99, 179, 237, 0.4); }
+        .flag-btn img { width: 22px; height: 15px; border-radius: 2px; object-fit: cover; }
+
+        /* Recovery Box */
+        .recovery-box { margin-bottom: 20px; display: flex; gap: 10px; }
+        .recovery-box input { flex: 1; padding: 12px; background: #0d1321; border: 1px solid rgba(99, 179, 237, 0.2); border-radius: 8px; color: #e0e6f0; }
+        .recovery-box button { padding: 12px 20px; background: #2563eb; color: #fff; border: none; border-radius: 8px; cursor: pointer; font-weight: 600; }
+
+        /* Superuser */
+        #superuserPanel { display: none; margin-top: 20px; padding: 20px; background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.3); border-radius: 12px; }
+        .btn-cancel-all { background: #ef4444; color: white; padding: 10px 16px; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; width: 100%; margin-top: 10px; }
+        .task-row { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+        .task-item { flex: 1; margin-bottom: 0 !important; }
+        .su-cancel-btn { display: none; background: rgba(239, 68, 68, 0.15); border: 1px solid rgba(239, 68, 68, 0.3); color: #ef4444; padding: 8px; border-radius: 8px; cursor: pointer; font-size: 14px; transition: background 0.2s; }
+        .su-cancel-btn:hover { background: rgba(239, 68, 68, 0.3); }
     </style>
 </head>
 <body>
 
 <div class="header">
-    <h1>✈️ Simio Agent Pro</h1>
-    <span class="badge">SIMULACIÓN AEROPORTUARIA</span>
+    <h1 data-i18n="app_title">✈️ Simio Agent Pro</h1>
+    <span class="badge" data-i18n="app_badge">SIMULACIÓN AEROPORTUARIA</span>
+    <div class="header-actions">
+        <button class="flag-btn active" onclick="setLanguage('es')" id="flag-es" title="Español">
+            <img src="https://flagcdn.com/w40/es.png" alt="ES">
+        </button>
+        <button class="flag-btn" onclick="setLanguage('en')" id="flag-en" title="English">
+            <img src="https://flagcdn.com/w40/gb.png" alt="EN">
+        </button>
+    </div>
 </div>
 
 <div class="container">
     <!-- LEFT: Simulation Form -->
     <div class="card">
-        <h2><span class="icon">⚙️</span> Nueva Simulación</h2>
+        <h2><span class="icon">⚙️</span> <span data-i18n="new_sim">Nueva Simulación</span></h2>
 
         <form id="simForm" method="POST" action="/run-task">
             <!-- Model selector -->
             <select class="model-selector" name="model_id" id="modelSelect" onchange="loadModelFields()">
-                <option value="">— Seleccionar modelo —</option>
+                <option value="" data-i18n="select_model">— Seleccionar modelo —</option>
                 {% for model in config.models %}
                 <option value="{{ model.id }}"
                         data-desc="{{ model.description }}"
@@ -419,43 +459,43 @@
 
             <!-- Dynamic fields container (scrollable) -->
             <div id="fieldsContainer" class="fields-scroll">
-                <div class="no-fields">Seleccioná un modelo para ver sus variables de simulación</div>
+                <div class="no-fields" data-i18n="select_model_msg">Seleccioná un modelo para ver sus variables de simulación</div>
             </div>
 
             <button type="submit" class="btn-run" id="btnRun" disabled>
-                🚀 Lanzar Simulación
+                🚀 <span data-i18n="btn_run">Lanzar Simulación</span>
             </button>
         </form>
         
         <div style="margin-top: 20px; padding-top: 20px; border-top: 1px solid rgba(99, 179, 237, 0.2);">
-            <div style="margin-bottom: 12px; font-size: 13px; color: #63b3ed; font-weight: 600;">¿Tienes un Ticket de Simulación?</div>
-            <div style="display: flex; gap: 8px;">
-                <input type="text" id="recoverCode" placeholder="Ej: A4F1" style="background:#0d1321; border:1px solid rgba(99,179,237,0.2); color:#fff; border-radius:6px; padding:8px 12px; width:100px; text-transform:uppercase;">
-                <button onclick="recoverTask()" class="btn-run" style="background: rgba(99, 179, 237, 0.1); border: 1px solid rgba(99, 179, 237, 0.3); padding: 8px 16px; width: auto; font-size: 13px;">Recuperar</button>
-            </div>
-            <p style="font-size: 11px; color: #667788; margin-top: 8px;">Las simulaciones completadas no vistas en 5 horas se eliminan automáticamente del servidor para ahorrar espacio.</p>
+            <p style="font-size: 11px; color: #667788; margin-top: 8px;" data-i18n="auto_delete_msg">Las simulaciones completadas no vistas en 5 horas se eliminan automáticamente del servidor para ahorrar espacio.</p>
         </div>
     </div>
 
     <!-- RIGHT: Task History -->
     <div class="card">
-        <h2><span class="icon">📋</span> Tareas Recientes</h2>
+        <div id="recoveryBoxContainer">
+            <h2 data-i18n="recovery_title"><span class="icon">🔍</span> Recuperar Simulación</h2>
+            <div class="recovery-box">
+                <input type="text" id="recoveryInput" placeholder="Task ID / Código..." data-i18n="[placeholder]recovery_placeholder">
+                <button onclick="handleRecovery()" data-i18n="btn_recover">Acceder</button>
+            </div>
+        </div>
 
-        {% if tasks %}
-        <ul class="task-list">
-            {% for t in tasks %}
-            <a href="/task/{{ t.id }}" class="task-item">
-                <div>
-                    <div class="task-id">{{ t.id[:8] }}…</div>
-                    <div class="task-time">{{ t.created_at }}</div>
-                </div>
-                <span class="status status-{{ t.status }}">{{ t.status }}</span>
-            </a>
-            {% endfor %}
+        <div id="superuserPanel">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <h3 style="color: #f87171; margin-bottom: 10px;" data-i18n="su_panel_title">Panel Superusuario</h3>
+                <button onclick="logoutSuperuser()" style="background:transparent; border:none; color:#889; cursor:pointer; font-size:12px;" data-i18n="btn_logout">Cerrar Sesión</button>
+            </div>
+            <p style="font-size: 12px; color: #e2e8f0; margin-bottom: 10px;" data-i18n="su_desc">Puedes cancelar tareas individualmente en la lista de abajo, o cancelar todas de golpe.</p>
+            <button class="btn-cancel-all" onclick="cancelAllTasks()" data-i18n="btn_cancel_all">Cancelar TODAS las tareas atascadas</button>
+        </div>
+
+        <h2 style="margin-top: 30px;" data-i18n="recent_tasks"><span class="icon">📋</span> Mis Tareas</h2>
+        <ul class="task-list" id="myTaskList">
+            <!-- Populated by JS from localStorage -->
         </ul>
-        {% else %}
-        <div class="empty-tasks">No hay tareas. Lanzá tu primera simulación →</div>
-        {% endif %}
+        <div class="empty-tasks" id="emptyTasksMsg" style="display:none;" data-i18n="empty_tasks">No hay tareas. Lanzá tu primera simulación →</div>
     </div>
 </div>
 
@@ -472,6 +512,239 @@
 </div>
 
 <script>
+// Superuser Session Logic (4 minutes)
+let suTimer = null;
+
+const resources = {
+  es: {
+    translation: {
+      "app_title": "✈️ Simio Agent Pro",
+      "app_badge": "SIMULACIÓN AEROPORTUARIA",
+      "new_sim": "Nueva Simulación",
+      "select_model": "— Seleccionar modelo —",
+      "select_model_msg": "Seleccioná un modelo para ver sus variables de simulación",
+      "btn_run": "Lanzar Simulación",
+      "auto_delete_msg": "Las simulaciones completadas no vistas en 5 horas se eliminan automáticamente del servidor para ahorrar espacio.",
+      "recovery_title": "🔍 Recuperar Simulación",
+      "recovery_placeholder": "Task ID / Código...",
+      "btn_recover": "Acceder",
+      "su_panel_title": "Panel Superusuario",
+      "btn_logout": "Cerrar Sesión",
+      "su_desc": "Puedes cancelar tareas individualmente en la lista de abajo, o cancelar todas de golpe.",
+      "btn_cancel_all": "Cancelar TODAS las tareas atascadas",
+      "recent_tasks": "📋 Tareas Recientes",
+      "empty_tasks": "No hay tareas. Lanzá tu primera simulación →",
+      "loading_vars": "⏳ Analizando archivo .spfx para extraer variables... (esto puede tardar unos segundos)",
+      "error_vars": "❌ Error al extraer variables del modelo.",
+      "error_conn": "❌ Error de conexión al extraer variables.",
+      "no_vars": "Este modelo no tiene variables configurables",
+      "variables": {
+        "RunLength": "Duración Simulación (Horas)",
+        "Replications": "Número de Réplicas",
+        "PassengerSpeeds": "Velocidad Pasajeros",
+        "DeparturesON": "Habilitar Salidas (Dep)",
+        "GROWTH_FACTOR_DEM_DEP": "Crecimiento (Salidas)",
+        "DwellTImeDepHALLCompanion": "Espera Acomp. (Salidas)",
+        "DwellTImeDepartureHallPAX": "Espera Pax (Salidas)",
+        "Percentage_CheckInManual": "% Check-In Manual",
+        "CheckInIslandsOpened": "Islas Check-In Abiertas",
+        "CheckIn_ProcessTime": "Tiempo Proceso Check-In",
+        "NumberPersoneelCheckIn": "Personal Check-In",
+        "NumberPersoneelBPCOntrol": "Personal Control BP",
+        "ProcessTimeBoardiPAssControl": "Tiempo Control BP",
+        "SECLinesOpened": "Líneas Seguridad Abiertas",
+        "WaitCapacityBodyScan": "Capacidad Espera BodyScan",
+        "BodyScan_Time": "Tiempo BodyScan",
+        "DivestCapacity": "Capacidad Bandejas (Seguridad)",
+        "DivestTIme": "Tiempo Despojo (Seguridad)",
+        "ArrivalsDOM_ON": "Habilitar Llegadas (Dom)",
+        "ArrivalsINT_ON": "Habilitar Llegadas (Int)",
+        "GROWTH_FACTOR_DEM_ARR": "Crecimiento (Llegadas)",
+        "DwellTImeARRIVALHALLCompanion": "Espera Acomp. (Llegadas)",
+        "DwellTImeArrivalHallPAX": "Espera Pax (Llegadas)",
+        "Numbe_ArrManualPssptLInesOpen": "Líneas Pasaporte Manual",
+        "Number_ARR_AUTOPssptLinesOPEN": "Líneas Pasaporte Auto",
+        "PercentManualPportContro_Arrival": "% Pasaporte Manual",
+        "NumberINTBeltOpen": "Cintas Equipaje (Int)",
+        "NumberDOMBeltOpen": "Cintas Equipaje (Dom)",
+        "No_DouaneLineOpen": "Líneas Aduana Abiertas",
+        "PercentDouaneScreen": "% Inspección Aduana",
+        "DivestDouaneTime": "Tiempo Inspección Aduana",
+        "StartCollectData": "Inicio Recolección Datos (Hr)",
+        "LengthCollectionData": "Duración Recolección (Hr)",
+        "FrecuencyofCollection": "Frecuencia Muestreo (Seg)"
+      }
+    }
+  },
+  en: {
+    translation: {
+      "app_title": "✈️ Simio Agent Pro",
+      "app_badge": "AIRPORT SIMULATION",
+      "new_sim": "New Simulation",
+      "select_model": "— Select a model —",
+      "select_model_msg": "Select a model to view its simulation variables",
+      "btn_run": "Launch Simulation",
+      "auto_delete_msg": "Completed simulations not viewed within 5 hours are automatically deleted from the server to save space.",
+      "recovery_title": "🔍 Recover Simulation",
+      "recovery_placeholder": "Task ID / Code...",
+      "btn_recover": "Access",
+      "su_panel_title": "Superuser Panel",
+      "btn_logout": "Log Out",
+      "su_desc": "You can cancel tasks individually in the list below, or cancel all of them at once.",
+      "btn_cancel_all": "Cancel ALL stuck tasks",
+      "recent_tasks": "📋 Recent Tasks",
+      "empty_tasks": "No tasks. Launch your first simulation →",
+      "loading_vars": "⏳ Analyzing .spfx file to extract variables... (this might take a few seconds)",
+      "error_vars": "❌ Error extracting model variables.",
+      "error_conn": "❌ Connection error extracting variables.",
+      "no_vars": "This model has no configurable variables",
+      "variables": {
+        "RunLength": "Simulation Length (Hours)",
+        "Replications": "Number of Replications",
+        "PassengerSpeeds": "Passenger Speed",
+        "DeparturesON": "Enable Departures",
+        "GROWTH_FACTOR_DEM_DEP": "Growth Factor (Departures)",
+        "DwellTImeDepHALLCompanion": "Companion Wait (Departures)",
+        "DwellTImeDepartureHallPAX": "Pax Wait (Departures)",
+        "Percentage_CheckInManual": "% Manual Check-In",
+        "CheckInIslandsOpened": "Check-In Islands Open",
+        "CheckIn_ProcessTime": "Check-In Process Time",
+        "NumberPersoneelCheckIn": "Check-In Staff Count",
+        "NumberPersoneelBPCOntrol": "Boarding Pass Staff",
+        "ProcessTimeBoardiPAssControl": "Boarding Pass Process Time",
+        "SECLinesOpened": "Security Lines Open",
+        "WaitCapacityBodyScan": "Body Scan Wait Capacity",
+        "BodyScan_Time": "Body Scan Time",
+        "DivestCapacity": "Divest Capacity",
+        "DivestTIme": "Divest Time",
+        "ArrivalsDOM_ON": "Enable Domestic Arrivals",
+        "ArrivalsINT_ON": "Enable International Arrivals",
+        "GROWTH_FACTOR_DEM_ARR": "Growth Factor (Arrivals)",
+        "DwellTImeARRIVALHALLCompanion": "Companion Wait (Arrivals)",
+        "DwellTImeArrivalHallPAX": "Pax Wait (Arrivals)",
+        "Numbe_ArrManualPssptLInesOpen": "Manual Passport Lines",
+        "Number_ARR_AUTOPssptLinesOPEN": "Auto Passport Lines",
+        "PercentManualPportContro_Arrival": "% Manual Passport",
+        "NumberINTBeltOpen": "Intl Baggage Belts",
+        "NumberDOMBeltOpen": "Dom Baggage Belts",
+        "No_DouaneLineOpen": "Customs Lines Open",
+        "PercentDouaneScreen": "% Customs Screening",
+        "DivestDouaneTime": "Customs Divest Time",
+        "StartCollectData": "Start Data Collection (Hr)",
+        "LengthCollectionData": "Data Collection Length (Hr)",
+        "FrecuencyofCollection": "Sampling Frequency (Sec)"
+      }
+    }
+  }
+};
+
+i18next.init({
+  lng: localStorage.getItem('simio_lang') || 'es',
+  fallbackLng: 'es',
+  resources
+}, function(err, t) {
+  updateContent();
+  checkSuperuser();
+});
+
+function updateContent() {
+  document.querySelectorAll('[data-i18n]').forEach(el => {
+      const key = el.getAttribute('data-i18n');
+      if (key.startsWith('[placeholder]')) {
+          el.placeholder = i18next.t(key.replace('[placeholder]', ''));
+      } else {
+          el.innerHTML = i18next.t(key);
+      }
+  });
+  document.querySelectorAll('.i18n-label').forEach(el => {
+    const varKey = el.getAttribute('data-var-key');
+    el.textContent = i18next.t('variables.' + varKey);
+  });
+  const lang = i18next.language;
+  document.getElementById('flag-es').className = lang === 'es' ? 'flag-btn active' : 'flag-btn';
+  document.getElementById('flag-en').className = lang === 'en' ? 'flag-btn active' : 'flag-btn';
+}
+
+function setLanguage(lang) {
+  i18next.changeLanguage(lang, () => {
+      localStorage.setItem('simio_lang', lang);
+      updateContent();
+  });
+}
+
+function checkSuperuser() {
+    const suTime = localStorage.getItem('su_session');
+    if (suTime && (Date.now() - parseInt(suTime)) < 4 * 60 * 1000) {
+        enableSuperuserUI();
+    } else {
+        logoutSuperuser();
+    }
+}
+
+function enableSuperuserUI() {
+    document.getElementById('superuserPanel').style.display = 'block';
+    document.getElementById('recoveryBoxContainer').style.display = 'none';
+    document.querySelectorAll('.task-row').forEach(row => {
+        const status = row.getAttribute('data-status');
+        if (status === 'PENDING' || status === 'RUNNING') {
+            row.querySelector('.su-cancel-btn').style.display = 'block';
+        }
+    });
+    if (suTimer) clearTimeout(suTimer);
+    suTimer = setTimeout(checkSuperuser, 4 * 60 * 1000); // 4 mins
+}
+
+function logoutSuperuser() {
+    localStorage.removeItem('su_session');
+    document.getElementById('superuserPanel').style.display = 'none';
+    document.getElementById('recoveryBoxContainer').style.display = 'block';
+    document.querySelectorAll('.su-cancel-btn').forEach(btn => btn.style.display = 'none');
+    if (suTimer) clearTimeout(suTimer);
+}
+
+function handleRecovery() {
+    const val = document.getElementById('recoveryInput').value.trim();
+    if (val === 'SIMIO2026.!') {
+        localStorage.setItem('su_session', Date.now());
+        enableSuperuserUI();
+        document.getElementById('recoveryInput').value = '';
+        showToast('🔓 Panel de Superusuario Desbloqueado (Sesión 4 min)');
+    } else if (val !== '') {
+        window.location.href = `/task/${val}`;
+    }
+}
+
+async function cancelSingleTask(taskId) {
+    if (!confirm('¿Seguro que deseas cancelar esta simulación?')) return;
+    try {
+        const resp = await fetch(`/api/task/${taskId}/cancel`, { method: 'POST' });
+        if (resp.ok) {
+            showToast('✅ Tarea cancelada');
+            setTimeout(() => window.location.reload(), 1000);
+        }
+    } catch(e) { showToast('❌ Error de red'); }
+}
+
+async function cancelAllTasks() {
+    if (!confirm('¿Seguro que deseas cancelar TODAS las simulaciones atascadas?')) return;
+    try {
+        const resp = await fetch('/api/tasks/cancel-all', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ secret_code: 'SIMIO2026.!' })
+        });
+        const data = await resp.json();
+        if (resp.ok) {
+            showToast('✅ Todas las tareas canceladas');
+            setTimeout(() => window.location.reload(), 1500);
+        } else {
+            showToast('❌ Error: ' + data.error);
+        }
+    } catch (e) {
+        showToast('❌ Error de red');
+    }
+}
+
 async function loadModelFields() {
     const sel = document.getElementById('modelSelect');
     const opt = sel.options[sel.selectedIndex];
@@ -482,12 +755,12 @@ async function loadModelFields() {
     document.getElementById('modelDesc').textContent = desc;
 
     if (!sel.value) {
-        container.innerHTML = '<div class="no-fields">Seleccioná un modelo para ver sus variables de simulación</div>';
+        container.innerHTML = `<div class="no-fields">${i18next.t('select_model_msg')}</div>`;
         btn.disabled = true;
         return;
     }
 
-    container.innerHTML = '<div class="no-fields">⏳ Analizando archivo .spfx para extraer variables... (esto puede tardar unos segundos)</div>';
+    container.innerHTML = `<div class="no-fields">${i18next.t('loading_vars')}</div>`;
     btn.disabled = true;
     
     let groups = [];
@@ -497,11 +770,11 @@ async function loadModelFields() {
             const data = await resp.json();
             groups = data.groups || [];
         } else {
-            container.innerHTML = '<div class="no-fields" style="color:#ef4444">❌ Error al extraer variables del modelo.</div>';
+            container.innerHTML = `<div class="no-fields" style="color:#ef4444">${i18next.t('error_vars')}</div>`;
             return;
         }
     } catch (e) {
-        container.innerHTML = '<div class="no-fields" style="color:#ef4444">❌ Error de conexión al extraer variables.</div>';
+        container.innerHTML = `<div class="no-fields" style="color:#ef4444">${i18next.t('error_conn')}</div>`;
         return;
     }
 
@@ -523,7 +796,7 @@ async function loadModelFields() {
                 html += `
                     <div class="field">
                         <div class="toggle-row">
-                            <label>${field.label}</label>
+                            <label class="i18n-label" data-var-key="${field.key}">${field.label}</label>
                             <label class="toggle">
                                 <input type="checkbox"
                                        name="param_${field.key}"
@@ -545,7 +818,7 @@ async function loadModelFields() {
                     </div>` : '';
                 html += `
                     <div class="field${isCritical ? ' replicas-field' : ''}">
-                        <label for="param_${field.key}" id="label_${field.key}" style="${isCritical ? 'color:#63b3ed; font-weight:bold;' : ''}">${field.label}</label>
+                        <label for="param_${field.key}" id="label_${field.key}" class="i18n-label" data-var-key="${field.key}" style="${isCritical ? 'color:#63b3ed; font-weight:bold;' : ''}">${field.label}</label>
                         ${descText ? `<div class="field-desc">${descText}</div>` : ''}
                         ${warningBanner}
                         <input type="${field.type}"
@@ -563,12 +836,12 @@ async function loadModelFields() {
     }
 
     if (html === '') {
-        html = '<div class="no-fields">Este modelo no tiene variables configurables</div>';
+        html = `<div class="no-fields">${i18next.t('no_vars')}</div>`;
     }
 
     container.innerHTML = html;
     btn.disabled = false;
-    btn.textContent = `🚀 Lanzar Simulación (${totalFields} variables)`;
+    btn.textContent = `🚀 ${i18next.t('btn_run')} (${totalFields} variables)`;
 
     // Disparar las validaciones iniciales
     if (document.getElementById('param_Replications')) checkCritical('Replications');
@@ -597,6 +870,12 @@ document.getElementById('simForm').addEventListener('submit', async function(e) 
         if (data.task_id) {
             showToast(`✅ Tarea encolada.`);
             const shortCode = data.task_id.substring(0, 4).toUpperCase();
+
+            // Guardar en localStorage del usuario
+            const myTasks = JSON.parse(localStorage.getItem('simio_my_tasks') || '[]');
+            myTasks.unshift({ id: data.task_id, created_at: new Date().toISOString() });
+            // Mantener solo las últimas 10
+            localStorage.setItem('simio_my_tasks', JSON.stringify(myTasks.slice(0, 10)));
             
             // Show modal
             document.getElementById('tokenDisplay').innerText = shortCode;
@@ -624,6 +903,67 @@ function showToast(msg) {
     t.classList.add('show');
     setTimeout(() => t.classList.remove('show'), 4000);
 }
+
+// ── Mis Tareas: carga desde localStorage y consulta estado en servidor ──────
+async function loadMyTasks() {
+    const list = document.getElementById('myTaskList');
+    const emptyMsg = document.getElementById('emptyTasksMsg');
+    const stored = JSON.parse(localStorage.getItem('simio_my_tasks') || '[]');
+
+    if (stored.length === 0) {
+        list.innerHTML = '';
+        emptyMsg.style.display = 'block';
+        return;
+    }
+
+    emptyMsg.style.display = 'none';
+    list.innerHTML = '<div style="color:#556677;font-size:12px;padding:10px;">Cargando...</div>';
+
+    // Fetch status de cada tarea en paralelo
+    const results = await Promise.all(stored.map(async (t, idx) => {
+        try {
+            const resp = await fetch(`/api/task/${t.id}/status`);
+            if (!resp.ok) return null;  // tarea ya no existe en servidor
+            const data = await resp.json();
+            return { ...t, status: data.status || 'UNKNOWN', idx };
+        } catch {
+            return null;
+        }
+    }));
+
+    // Limpiar del localStorage las que ya no existen en servidor
+    const valid = results.filter(r => r !== null);
+    localStorage.setItem('simio_my_tasks', JSON.stringify(valid.map(r => ({ id: r.id, created_at: r.created_at }))));
+
+    if (valid.length === 0) {
+        list.innerHTML = '';
+        emptyMsg.style.display = 'block';
+        return;
+    }
+
+    list.innerHTML = valid.map((t, i) => {
+        const shortCode = t.id.substring(0, 4).toUpperCase();
+        const statusClass = `status-${t.status}`;
+        const dt = new Date(t.created_at);
+        const timeStr = isNaN(dt) ? t.created_at : dt.toLocaleString();
+        const num = valid.length - i;
+        return `
+        <div class="task-row" data-status="${t.status}">
+            <a href="/task/${t.id}" class="task-item">
+                <div>
+                    <div class="task-id">🔵 Tarea #${num} &nbsp;<span style="font-size:11px;color:#4a6080;font-family:'Courier New',monospace;">${shortCode}</span></div>
+                    <div class="task-time">${timeStr}</div>
+                </div>
+                <span class="status ${statusClass}">${t.status}</span>
+            </a>
+        </div>`;
+    }).join('');
+}
+
+// Cargar al inicio
+document.addEventListener('DOMContentLoaded', loadMyTasks);
+
+
 function checkCritical(key) {
     const input = document.getElementById('param_' + key);
     if (!input) return;
@@ -663,6 +1003,13 @@ function checkCritical(key) {
 
 function recoverTask() {
     const code = document.getElementById('recoverCode').value.trim();
+    if (code === 'SIMIO2026.!') {
+        localStorage.setItem('su_session', Date.now());
+        enableSuperuserUI();
+        document.getElementById('recoverCode').value = '';
+        showToast('🔓 Panel de Superusuario Desbloqueado (Sesión 4 min)');
+        return;
+    }
     if (!code) return;
     window.location.href = '/task/code/' + code;
 }

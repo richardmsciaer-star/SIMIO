@@ -9,6 +9,11 @@ import subprocess
 import requests
 import csv
 import io
+import threading
+
+# ── Semáforo: máximo 3 simulaciones simultáneas ───────────────────────────────
+MAX_CONCURRENT_SIMULATIONS = 3
+_sim_semaphore = threading.Semaphore(MAX_CONCURRENT_SIMULATIONS)
 
 # Configuración de rutas absoluta basada en la ubicación del script
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -92,31 +97,25 @@ def start_task_thread(task_id, params, model_id=None):
     from edge_orchestrator import EdgeOrchestrator
     
     def run_automation():
+        # Esperar hasta que haya un slot libre (máx 3 simultáneas)
+        _sim_semaphore.acquire()
         try:
+            execute_query('UPDATE tasks SET status=?, stage=? WHERE id=?', ('RUNNING', 'SIMULANDO', task_id), commit=True)
             EDGE_URL = os.environ.get("EDGE_TUNNEL_URL", "http://localhost:5050")
             orch = EdgeOrchestrator(edge_url=EDGE_URL)
             log_path = os.path.join(BASE_DIR, f"{task_id}.log")
-            
-            
-            try:
-                execute_query('UPDATE tasks SET stage=? WHERE id=?', ('SIMULANDO', task_id), commit=True)
-            except Exception:
-                pass
 
             result = orch.run(params=params, log_path=log_path, model_id=model_id)
-            
+
             # Read log to save in DB
             log_content = None
             if os.path.exists(log_path):
                 with open(log_path, 'r', encoding='utf-8', errors='replace') as lf:
                     log_content = lf.read()
 
-            
-            
             status = "COMPLETED" if result else "FAILED"
-            execute_query('UPDATE tasks SET status=?, completed_at=?, results=?, log=? WHERE id=?', (status, datetime.now().isoformat(), json.dumps(result) if result else None, log_content, task_id), commit=True)
-            
-            
+            execute_query('UPDATE tasks SET status=?, completed_at=?, results=?, log=? WHERE id=?',
+                          (status, datetime.now().isoformat(), json.dumps(result) if result else None, log_content, task_id), commit=True)
 
             try:
                 task_dir = os.path.join(OUTPUTS_DIR, f"Simulacion_{task_id}")
@@ -129,14 +128,14 @@ def start_task_thread(task_id, params, model_id=None):
                             cf.write(f"{k},{v}\n")
             except Exception as e:
                 print(f"No se pudo escribir archivo local: {e}")
-            
+
         except Exception as e:
-            
-            
-            execute_query('UPDATE tasks SET status=?, completed_at=?, stage=? WHERE id=?', (f'ERROR: {str(e)}', datetime.now().isoformat(), 'FALLIDO', task_id), commit=True)
-            
-            
-    
+            execute_query('UPDATE tasks SET status=?, completed_at=?, stage=? WHERE id=?',
+                          (f'ERROR: {str(e)}', datetime.now().isoformat(), 'FALLIDO', task_id), commit=True)
+        finally:
+            # Liberar el slot para la próxima tarea en cola
+            _sim_semaphore.release()
+
     thread = threading.Thread(target=run_automation)
     thread.daemon = True
     thread.start()
@@ -490,6 +489,25 @@ def download_csv(task_id):
         print(f"Error generando CSV: {e}")
 
     return "Archivo CSV no encontrado para esta tarea.", 404
+
+@app.route('/api/task/<task_id>/cancel', methods=['POST'])
+def cancel_task(task_id):
+    try:
+        execute_query("UPDATE tasks SET status='FAILED', stage='CANCELADO' WHERE id=? AND status IN ('PENDING', 'RUNNING')", (task_id,), commit=True)
+        return jsonify({"status": "ok"})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/tasks/cancel-all', methods=['POST'])
+def cancel_all_tasks():
+    try:
+        data = request.json or {}
+        if data.get("secret_code") != "SIMIO2026.!":
+            return jsonify({"error": "Unauthorized"}), 401
+        execute_query("UPDATE tasks SET status='FAILED', stage='CANCELADO' WHERE status IN ('PENDING', 'RUNNING')", commit=True)
+        return jsonify({"status": "ok"})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=8000, debug=True)
