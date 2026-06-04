@@ -4,7 +4,7 @@ import sys
 import json
 import uuid
 import traceback
-from datetime import datetime
+from datetime import datetime, timedelta
 import subprocess
 import requests
 import csv
@@ -177,7 +177,8 @@ def run_task():
     
     
     
-    execute_query("DELETE FROM tasks WHERE created_at < datetime('now', '-5 hours')", commit=True)
+    cutoff = (datetime.now() - timedelta(hours=5)).isoformat()
+    execute_query("DELETE FROM tasks WHERE created_at < ?", (cutoff,), commit=True)
     execute_query('INSERT INTO tasks (id, params, status, created_at, stage, short_code, model_id) VALUES (?, ?, ?, ?, ?, ?, ?)', (task_id, json.dumps(params), 'PENDING', datetime.now().isoformat(), 'INICIANDO', short_code, model_id), commit=True)
     
     
